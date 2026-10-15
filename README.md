@@ -32,7 +32,7 @@ Design tokens are documented in [`src/config/design.md`](src/config/design.md).
 
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_or_publishable_key
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 ### Security model
