@@ -30,11 +30,11 @@ export function CartPage() {
 
   const afterDiscount = Math.max(0, subtotal - discountAmount)
 
-  const handleApplyCode = (e: FormEvent) => {
+  const handleApplyCode = async (e: FormEvent) => {
     e.preventDefault()
     setCodeError(null)
     setCodeSuccess(false)
-    const result = applyDiscount(codeInput)
+    const result = await applyDiscount(codeInput)
     if (!result.ok) {
       setCodeError(result.message)
       return

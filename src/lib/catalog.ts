@@ -4,10 +4,9 @@
 import {
   categories as localCategories,
   collections as localCollections,
-  discountCodes as localDiscountCodes,
   products as localProducts,
 } from '@/data/catalog'
-import type { Category, Collection, DiscountCode, Product } from '@/types'
+import type { Category, Collection, Product } from '@/types'
 
 export type ProductSort = 'featured' | 'price-asc' | 'price-desc' | 'newest'
 
@@ -27,10 +26,6 @@ export interface PaginatedResult<T> {
   items: T[]
   total: number
 }
-
-export type DiscountValidation =
-  | { valid: true; code: DiscountCode; discountAmount: number }
-  | { valid: false; message: string }
 
 function activeProducts(): Product[] {
   return localProducts.filter((p) => p.is_active)
@@ -238,47 +233,3 @@ export function getRelatedProducts(product: Product, limit = 4): Product[] {
   return scored.slice(0, limit).map(({ p }) => p)
 }
 
-export function validateDiscountCode(code: string, subtotal: number): DiscountValidation {
-  const normalized = code.trim().toUpperCase()
-  if (!normalized) {
-    return { valid: false, message: 'Enter a discount code.' }
-  }
-
-  const match = localDiscountCodes.find(
-    (dc) => dc.is_active && dc.code.toUpperCase() === normalized,
-  )
-
-  if (!match) {
-    return { valid: false, message: 'This code is not valid.' }
-  }
-
-  const now = Date.now()
-  if (match.starts_at && new Date(match.starts_at).getTime() > now) {
-    return { valid: false, message: 'This code is not active yet.' }
-  }
-  if (match.ends_at && new Date(match.ends_at).getTime() < now) {
-    return { valid: false, message: 'This code has expired.' }
-  }
-  if (match.max_uses != null && match.used_count >= match.max_uses) {
-    return { valid: false, message: 'This code has reached its usage limit.' }
-  }
-  if (match.min_spend != null && subtotal < match.min_spend) {
-    return {
-      valid: false,
-      message: `Minimum spend is PKR ${match.min_spend.toLocaleString('en-PK')}.`,
-    }
-  }
-
-  let discountAmount = 0
-  if (match.type === 'percent') {
-    discountAmount = Math.floor((subtotal * match.value) / 100)
-  } else {
-    discountAmount = Math.min(match.value, subtotal)
-  }
-
-  if (discountAmount <= 0) {
-    return { valid: false, message: 'This code cannot be applied to your cart.' }
-  }
-
-  return { valid: true, code: match, discountAmount }
-}

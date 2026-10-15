@@ -10,8 +10,8 @@ import {
 import { toast } from 'sonner'
 
 import { store } from '@/config/store'
-import { validateDiscountCode } from '@/lib/catalog'
-import type { CartItem, DiscountCode } from '@/types'
+import { checkDiscountCode } from '@/lib/validateDiscount'
+import type { CartItem } from '@/types'
 
 const STORAGE_KEY = 'eo-cart-v1'
 
@@ -52,7 +52,9 @@ interface CartContextValue {
   updateQty: (variantId: string, quantity: number) => void
   removeItem: (variantId: string) => void
   clear: () => void
-  applyDiscount: (code: string) => { ok: true } | { ok: false; message: string }
+  applyDiscount: (
+    code: string,
+  ) => Promise<{ ok: true } | { ok: false; message: string }>
   clearDiscount: () => void
 }
 
@@ -184,25 +186,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setState({ items: [], discountCode: null, discountAmount: 0 })
   }, [])
 
-  const recalcDiscount = useCallback(
-    (code: string | null, itemsSubtotal: number): { amount: number; code: DiscountCode | null } => {
-      if (!code) return { amount: 0, code: null }
-      const result = validateDiscountCode(code, itemsSubtotal)
-      if (!result.valid) return { amount: 0, code: null }
-      return { amount: result.discountAmount, code: result.code }
-    },
-    [],
-  )
-
   const applyDiscount = useCallback(
-    (code: string): { ok: true } | { ok: false; message: string } => {
-      const result = validateDiscountCode(code, subtotal)
+    async (
+      code: string,
+    ): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const result = await checkDiscountCode(code, subtotal)
       if (!result.valid) {
         return { ok: false, message: result.message }
       }
       setState((prev) => ({
         ...prev,
-        discountCode: result.code.code,
+        discountCode: result.code,
         discountAmount: result.discountAmount,
       }))
       return { ok: true }
@@ -215,13 +209,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    setState((prev) => {
-      if (!prev.discountCode) return prev
-      const { amount } = recalcDiscount(prev.discountCode, subtotal)
-      if (amount === prev.discountAmount) return prev
-      return { ...prev, discountAmount: amount }
+    const code = state.discountCode
+    if (!code) return
+    let cancelled = false
+    void checkDiscountCode(code, subtotal).then((result) => {
+      if (cancelled) return
+      if (!result.valid) {
+        setState((prev) => ({
+          ...prev,
+          discountCode: null,
+          discountAmount: 0,
+        }))
+        return
+      }
+      setState((prev) => {
+        if (
+          prev.discountCode === result.code &&
+          prev.discountAmount === result.discountAmount
+        ) {
+          return prev
+        }
+        return {
+          ...prev,
+          discountCode: result.code,
+          discountAmount: result.discountAmount,
+        }
+      })
     })
-  }, [subtotal, recalcDiscount])
+    return () => {
+      cancelled = true
+    }
+  }, [subtotal, state.discountCode])
 
   const value = useMemo<CartContextValue>(
     () => ({
