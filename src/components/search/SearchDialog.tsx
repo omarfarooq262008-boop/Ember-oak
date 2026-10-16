@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { SoftImage } from '@/components/ui/soft-image'
 import { useSearchSuggestions } from '@/hooks/useCatalog'
 import { cn } from '@/lib/utils'
 
@@ -136,11 +137,13 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                                 onClick={() => onOpenChange(false)}
                               >
                                 {img ? (
-                                  <img
-                                    src={img.url}
-                                    alt=""
-                                    className="size-12 rounded-(--radius-sm) object-cover"
-                                  />
+                                  <span className="size-12 shrink-0 overflow-hidden rounded-(--radius-sm)">
+                                    <SoftImage
+                                      src={img.url}
+                                      alt={img.alt || product.name}
+                                      className="size-12 object-cover"
+                                    />
+                                  </span>
                                 ) : (
                                   <span
                                     className="size-12 rounded-(--radius-sm) bg-border"

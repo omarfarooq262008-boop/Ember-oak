@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000" role="img" aria-label="Ember and Oak">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EDE6DC"/>
+      <stop offset="100%" stop-color="#D9CFC3"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1000" fill="url(#g)"/>
+  <rect x="60" y="60" width="680" height="880" fill="none" stroke="#C4B8A8" stroke-width="1"/>
+  <text x="400" y="490" text-anchor="middle" font-family="Georgia, serif" font-size="36" fill="#1C1917">Ember &amp; Oak</text>
+  <text x="400" y="540" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" fill="#78716C">Image unavailable</text>
+</svg>

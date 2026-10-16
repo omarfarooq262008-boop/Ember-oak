@@ -7,6 +7,7 @@ import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SoftImage } from '@/components/ui/soft-image'
 import { useCart } from '@/contexts/CartContext'
 import { formatPKR } from '@/lib/format'
 
@@ -74,7 +75,7 @@ export function CartPage() {
                       to={`/product/${item.productSlug}`}
                       className="shrink-0 overflow-hidden rounded-(--radius-sm) bg-background"
                     >
-                      <img
+                      <SoftImage
                         src={item.imageUrl}
                         alt={item.imageAlt}
                         className="aspect-product w-24 object-cover sm:w-28"

@@ -102,7 +102,7 @@ export const store = {
 
   seo: {
     siteUrl: 'https://emberandoak.pk',
-    defaultOgImage: '/og-default.svg',
+    defaultOgImage: '/og-default.jpg',
   },
 
   navigation: {

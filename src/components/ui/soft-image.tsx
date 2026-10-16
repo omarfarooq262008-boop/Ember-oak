@@ -1,16 +1,9 @@
-import { useState, type ImgHTMLAttributes } from 'react'
+import { useEffect, useState, type ImgHTMLAttributes } from 'react'
 
 import { cn } from '@/lib/utils'
 
-const PLACEHOLDER =
-  'data:image/svg+xml,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
-      <rect fill="#E7E0D8" width="800" height="1000"/>
-      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#78716C" font-family="system-ui,sans-serif" font-size="28">Ember &amp; Oak</text>
-    </svg>`,
-  )
+/** Neutral branded placeholder — keeps aspect ratio via CSS on the parent. */
+export const IMAGE_PLACEHOLDER = '/images/placeholder.svg'
 
 type SoftImageProps = ImgHTMLAttributes<HTMLImageElement> & {
   /** Extra class on the wrapper when using fill layout */
@@ -19,6 +12,7 @@ type SoftImageProps = ImgHTMLAttributes<HTMLImageElement> & {
 
 /**
  * Image with load fade-in and graceful fallback if the URL fails.
+ * Keeps alt text; swaps to a local placeholder on error (no layout jump).
  */
 export function SoftImage({
   className,
@@ -31,7 +25,13 @@ export function SoftImage({
 }: SoftImageProps) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
-  const resolvedSrc = failed || !src ? PLACEHOLDER : src
+
+  useEffect(() => {
+    setLoaded(false)
+    setFailed(false)
+  }, [src])
+
+  const resolvedSrc = failed || !src ? IMAGE_PLACEHOLDER : src
 
   return (
     <span className={cn('relative block size-full overflow-hidden', wrapperClassName)}>
@@ -55,7 +55,7 @@ export function SoftImage({
           onLoad?.(e)
         }}
         onError={(e) => {
-          if (!failed) {
+          if (!failed && resolvedSrc !== IMAGE_PLACEHOLDER) {
             setFailed(true)
             setLoaded(true)
           }

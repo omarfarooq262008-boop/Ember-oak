@@ -9,6 +9,7 @@ import { Link, NavLink } from 'react-router-dom'
 
 import { SearchDialog } from '@/components/search/SearchDialog'
 import { Button } from '@/components/ui/button'
+import { SoftImage } from '@/components/ui/soft-image'
 import {
   Sheet,
   SheetContent,
@@ -185,10 +186,11 @@ export function Header() {
                         className="relative hidden min-h-[12rem] bg-background md:block"
                         onClick={() => setShopOpen(false)}
                       >
-                        <img
+                        <SoftImage
                           src={heroCollection.image_url}
-                          alt=""
-                          className="absolute inset-0 size-full object-cover"
+                          alt={heroCollection.name}
+                          wrapperClassName="absolute inset-0"
+                          className="object-cover"
                         />
                         <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary/80 to-transparent p-4 text-sm font-medium text-brand-band-text">
                           {heroCollection.name}

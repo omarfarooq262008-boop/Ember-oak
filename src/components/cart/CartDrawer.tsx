@@ -10,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { SoftImage } from '@/components/ui/soft-image'
 import { store } from '@/config/store'
 import { useCart } from '@/contexts/CartContext'
 import { formatPKR } from '@/lib/format'
@@ -59,7 +60,7 @@ export function CartDrawer() {
                     onClick={() => setCartOpen(false)}
                     className="shrink-0 overflow-hidden rounded-(--radius-sm) bg-background"
                   >
-                    <img
+                    <SoftImage
                       src={item.imageUrl}
                       alt={item.imageAlt}
                       className="aspect-product w-20 object-cover"

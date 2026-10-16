@@ -13,8 +13,8 @@ import type {
   DiscountCode,
 } from '@/types'
 
-const img = (id: string, w = 800, h = 1000) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${h}&q=80`
+/** Local demo assets in public/images/ — no third-party hotlinks. */
+const img = (file: string) => `/images/${file}`
 
 export const categories: Category[] = [
   {
@@ -22,7 +22,7 @@ export const categories: Category[] = [
     slug: 'candles',
     name: 'Candles',
     description: 'Soy-blend candles poured in small batches for slow evenings.',
-    image_url: img('photo-1600618528240-fb9fc964b853'),
+    image_url: img('candle-warm.jpg'),
     sort_order: 1,
     is_active: true,
   },
@@ -31,7 +31,7 @@ export const categories: Category[] = [
     slug: 'diffusers',
     name: 'Diffusers',
     description: 'Reed and ceramic diffusers that scent a room without flame.',
-    image_url: img('photo-1608571423902-eed4a5ad8108', 800, 1000),
+    image_url: img('diffuser.jpg'),
     sort_order: 2,
     is_active: true,
   },
@@ -40,7 +40,7 @@ export const categories: Category[] = [
     slug: 'ceramics',
     name: 'Ceramics',
     description: 'Hand-finished vessels, trays, and holders in warm glazes.',
-    image_url: img('photo-1578749556568-bc2c40e68b61'),
+    image_url: img('ceramic-bowl.jpg'),
     sort_order: 3,
     is_active: true,
   },
@@ -49,7 +49,7 @@ export const categories: Category[] = [
     slug: 'throws',
     name: 'Throws',
     description: 'Soft throws and textiles for layered, lived-in rooms.',
-    image_url: img('photo-1584100936595-c0654b55a2e2'),
+    image_url: img('throw-texture.jpg'),
     sort_order: 4,
     is_active: true,
   },
@@ -58,7 +58,7 @@ export const categories: Category[] = [
     slug: 'gift-sets',
     name: 'Gift Sets',
     description: 'Curated pairings ready to wrap and give.',
-    image_url: img('photo-1549465220-1a8b9238cd48'),
+    image_url: img('gift-wrap.jpg'),
     sort_order: 5,
     is_active: true,
   },
@@ -70,7 +70,7 @@ export const collections: Collection[] = [
     slug: 'amber-hours',
     name: 'Amber Hours',
     description: 'Warm resinous notes and honeyed light for late afternoons.',
-    image_url: img('photo-1600618528240-fb9fc964b853', 1200, 675),
+    image_url: img('collection-amber.jpg'),
     featured: true,
     sort_order: 1,
     is_active: true,
@@ -80,7 +80,7 @@ export const collections: Collection[] = [
     slug: 'clay-studio',
     name: 'Clay Studio',
     description: 'Stoneware forms with matte glazes and quiet edges.',
-    image_url: img('photo-1610701596007-11502861dcfa', 1200, 675),
+    image_url: img('collection-clay.jpg'),
     featured: true,
     sort_order: 2,
     is_active: true,
@@ -90,7 +90,7 @@ export const collections: Collection[] = [
     slug: 'linen-light',
     name: 'Linen & Light',
     description: 'Soft textiles and pale ceramics for airy rooms.',
-    image_url: img('photo-1616486338812-3dadae4b4ace', 1200, 675),
+    image_url: img('collection-linen.jpg'),
     featured: true,
     sort_order: 3,
     is_active: true,
@@ -138,8 +138,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Sandalwood Ember candle in warm window light' },
-      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Sandalwood Ember candle lit detail' },
+      { url: img('candle-warm.jpg'), alt: 'Sandalwood Ember candle in warm window light' },
+      { url: img('candle-lit.jpg'), alt: 'Sandalwood Ember candle lit detail' },
     ],
     variants: [
       { sku: 'CND-SE-220', options: { size: '220 g', scent: 'Sandalwood Ember' }, price: 4500, stock: 28 },
@@ -162,8 +162,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Bergamot and Cedar candle on linen' },
-      { url: img('photo-1594035910387-fea47794261f'), alt: 'Bergamot candle top view' },
+      { url: img('candle-lit.jpg'), alt: 'Bergamot and Cedar candle on linen' },
+      { url: img('candle-dark.jpg'), alt: 'Bergamot candle top view' },
     ],
     variants: [
       { sku: 'CND-BC-220', options: { size: '220 g', scent: 'Bergamot Cedar' }, price: 4200, stock: 34 },
@@ -186,8 +186,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-clay'],
     images: [
-      { url: img('photo-1572726729207-a78d6feb18d7'), alt: 'Fig Leaf candle beside ceramics' },
-      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Fig Leaf candle flame glow' },
+      { url: img('candle-soft.jpg'), alt: 'Fig Leaf candle beside ceramics' },
+      { url: img('candle-warm.jpg'), alt: 'Fig Leaf candle flame glow' },
     ],
     variants: [
       { sku: 'CND-FL-220', options: { size: '220 g', scent: 'Fig Leaf' }, price: 4400, stock: 22 },
@@ -210,8 +210,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1594035910387-fea47794261f'), alt: 'Oud and Tobacco candle in low light' },
-      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Oud candle packaging detail' },
+      { url: img('candle-dark.jpg'), alt: 'Oud and Tobacco candle in low light' },
+      { url: img('candle-lit.jpg'), alt: 'Oud candle packaging detail' },
     ],
     variants: [
       { sku: 'CND-OT-220', options: { size: '220 g', scent: 'Oud Tobacco' }, price: 4800, stock: 18 },
@@ -234,8 +234,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1572726729207-a78d6feb18d7'), alt: 'White Tea candle on pale surface' },
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'White Tea candle in bright room' },
+      { url: img('candle-soft.jpg'), alt: 'White Tea candle on pale surface' },
+      { url: img('linen-room.jpg'), alt: 'White Tea candle in bright room' },
     ],
     variants: [
       { sku: 'CND-WT-220', options: { size: '220 g', scent: 'White Tea' }, price: 4000, stock: 40 },
@@ -257,8 +257,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1608571423902-eed4a5ad8108'), alt: 'Amber reed diffuser on wooden shelf' },
-      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Amber diffuser close-up' },
+      { url: img('diffuser.jpg'), alt: 'Amber reed diffuser on wooden shelf' },
+      { url: img('candle-warm.jpg'), alt: 'Amber diffuser close-up' },
     ],
     variants: [
       { sku: 'DIF-AM-200', options: { size: '200 ml', scent: 'Amber' }, price: 5500, stock: 25 },
@@ -281,8 +281,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1608571423902-eed4a5ad8108'), alt: 'Citrus Grove diffuser in morning light' },
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'Diffuser styling with linen' },
+      { url: img('diffuser.jpg'), alt: 'Citrus Grove diffuser in morning light' },
+      { url: img('linen-room.jpg'), alt: 'Diffuser styling with linen' },
     ],
     variants: [
       { sku: 'DIF-CG-200', options: { size: '200 ml', scent: 'Citrus Grove' }, price: 5200, stock: 20 },
@@ -304,8 +304,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-clay'],
     images: [
-      { url: img('photo-1610701596007-11502861dcfa'), alt: 'Stone ceramic diffuser vessel' },
-      { url: img('photo-1578749556568-bc2c40e68b61'), alt: 'Ceramic diffuser detail glaze' },
+      { url: img('ceramic-studio.jpg'), alt: 'Stone ceramic diffuser vessel' },
+      { url: img('ceramic-bowl.jpg'), alt: 'Ceramic diffuser detail glaze' },
     ],
     variants: [
       { sku: 'DIF-ST-AMB', options: { color: 'Ash', scent: 'Amber' }, price: 6800, stock: 14 },
@@ -329,8 +329,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-clay'],
     images: [
-      { url: img('photo-1578749556568-bc2c40e68b61'), alt: 'Large matte ceramic serving bowl' },
-      { url: img('photo-1610701596007-11502861dcfa'), alt: 'Bowl stacked with ceramics' },
+      { url: img('ceramic-bowl.jpg'), alt: 'Large matte ceramic serving bowl' },
+      { url: img('ceramic-studio.jpg'), alt: 'Bowl stacked with ceramics' },
     ],
     variants: [
       { sku: 'CER-MB-ASH', options: { size: 'Large', color: 'Ash' }, price: 6200, stock: 11 },
@@ -354,8 +354,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-clay'],
     images: [
-      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Pair of ceramic taper holders' },
-      { url: img('photo-1610701596007-11502861dcfa'), alt: 'Taper holders styled on table' },
+      { url: img('candle-lit.jpg'), alt: 'Pair of ceramic taper holders' },
+      { url: img('ceramic-studio.jpg'), alt: 'Taper holders styled on table' },
     ],
     variants: [
       { sku: 'CER-TH-RAW', options: { color: 'Raw Clay' }, price: 3800, stock: 19 },
@@ -378,8 +378,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-clay'],
     images: [
-      { url: img('photo-1610701596007-11502861dcfa'), alt: 'Speckled ceramic incense tray' },
-      { url: img('photo-1578749556568-bc2c40e68b61'), alt: 'Tray with incense stick' },
+      { url: img('ceramic-studio.jpg'), alt: 'Speckled ceramic incense tray' },
+      { url: img('ceramic-bowl.jpg'), alt: 'Tray with incense stick' },
     ],
     variants: [
       { sku: 'CER-IT-SPK', options: { color: 'Speckled' }, price: 2400, stock: 30 },
@@ -401,8 +401,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1581783342308-f792dbdd27c5'), alt: 'Tall ivory column vase' },
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'Column vase with dried stem' },
+      { url: img('vase-column.jpg'), alt: 'Tall ivory column vase' },
+      { url: img('linen-room.jpg'), alt: 'Column vase with dried stem' },
     ],
     variants: [
       { sku: 'CER-CV-IVO', options: { color: 'Ivory', size: 'Tall' }, price: 5100, stock: 13 },
@@ -425,8 +425,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1584100936595-c0654b55a2e2'), alt: 'Camel wool throw folded on sofa' },
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'Throw draped over armchair' },
+      { url: img('throw-texture.jpg'), alt: 'Camel wool throw folded on sofa' },
+      { url: img('linen-room.jpg'), alt: 'Throw draped over armchair' },
     ],
     variants: [
       { sku: 'THR-CW-CAM', options: { color: 'Camel', size: '130×180' }, price: 8900, compare_at_price: 9800, stock: 10 },
@@ -449,8 +449,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'Ivory stonewashed linen throw' },
-      { url: img('photo-1584100936595-c0654b55a2e2'), alt: 'Linen throw texture close-up' },
+      { url: img('linen-room.jpg'), alt: 'Ivory stonewashed linen throw' },
+      { url: img('throw-texture.jpg'), alt: 'Linen throw texture close-up' },
     ],
     variants: [
       { sku: 'THR-LN-IVO', options: { color: 'Ivory', size: '140×200' }, price: 7500, stock: 17 },
@@ -473,8 +473,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1584100936595-c0654b55a2e2'), alt: 'Rib knit bolster on daybed' },
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'Bolster styling detail' },
+      { url: img('throw-texture.jpg'), alt: 'Rib knit bolster on daybed' },
+      { url: img('linen-room.jpg'), alt: 'Bolster styling detail' },
     ],
     variants: [
       { sku: 'THR-RB-OAT', options: { color: 'Oat' }, price: 4200, stock: 21 },
@@ -497,8 +497,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1549465220-1a8b9238cd48'), alt: 'Evening Ritual gift set box' },
-      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Set contents arranged' },
+      { url: img('gift-wrap.jpg'), alt: 'Evening Ritual gift set box' },
+      { url: img('candle-warm.jpg'), alt: 'Set contents arranged' },
     ],
     variants: [
       { sku: 'SET-ER-01', options: { size: 'Standard' }, price: 9800, compare_at_price: 11200, stock: 15 },
@@ -520,8 +520,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-clay'],
     images: [
-      { url: img('photo-1549465220-1a8b9238cd48'), alt: 'Host Table gift set' },
-      { url: img('photo-1578749556568-bc2c40e68b61'), alt: 'Host set table styling' },
+      { url: img('gift-wrap.jpg'), alt: 'Host Table gift set' },
+      { url: img('ceramic-bowl.jpg'), alt: 'Host set table styling' },
     ],
     variants: [
       { sku: 'SET-HT-01', options: { size: 'Standard' }, price: 12500, stock: 7 },
@@ -543,8 +543,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'Quiet Bedroom set styling' },
-      { url: img('photo-1549465220-1a8b9238cd48'), alt: 'Quiet Bedroom set packaging' },
+      { url: img('linen-room.jpg'), alt: 'Quiet Bedroom set styling' },
+      { url: img('gift-wrap.jpg'), alt: 'Quiet Bedroom set packaging' },
     ],
     variants: [
       { sku: 'SET-QB-01', options: { size: 'Standard' }, price: 10800, compare_at_price: 11500, stock: 9 },
@@ -566,8 +566,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Three travel candle tins' },
-      { url: img('photo-1594035910387-fea47794261f'), alt: 'Travel tin open' },
+      { url: img('candle-lit.jpg'), alt: 'Three travel candle tins' },
+      { url: img('candle-dark.jpg'), alt: 'Travel tin open' },
     ],
     variants: [
       { sku: 'CND-TT-03', options: { size: '3 × 60 g' }, price: 3900, stock: 32 },
@@ -589,8 +589,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1608571423902-eed4a5ad8108'), alt: 'Linen room spray bottle' },
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'Room spray mist styling' },
+      { url: img('diffuser.jpg'), alt: 'Linen room spray bottle' },
+      { url: img('linen-room.jpg'), alt: 'Room spray mist styling' },
     ],
     variants: [
       { sku: 'SPR-LN-100', options: { size: '100 ml', scent: 'Linen' }, price: 2800, stock: 45 },
@@ -612,8 +612,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Brass lid match jar beside candle' },
-      { url: img('photo-1594035910387-fea47794261f'), alt: 'Match jar detail' },
+      { url: img('candle-warm.jpg'), alt: 'Brass lid match jar beside candle' },
+      { url: img('candle-dark.jpg'), alt: 'Match jar detail' },
     ],
     variants: [
       { sku: 'ACC-MJ-01', options: { color: 'Brass' }, price: 1800, stock: 50 },
@@ -636,8 +636,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1594035910387-fea47794261f'), alt: 'Brass candle snuffer' },
-      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Snuffer with candle' },
+      { url: img('candle-dark.jpg'), alt: 'Brass candle snuffer' },
+      { url: img('candle-warm.jpg'), alt: 'Snuffer with candle' },
     ],
     variants: [
       { sku: 'ACC-SN-01', options: { color: 'Brass' }, price: 2200, stock: 27 },
@@ -659,8 +659,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-clay'],
     images: [
-      { url: img('photo-1610701596007-11502861dcfa'), alt: 'Oak floating shelf with ceramics' },
-      { url: img('photo-1578749556568-bc2c40e68b61'), alt: 'Shelf grain detail' },
+      { url: img('ceramic-studio.jpg'), alt: 'Oak floating shelf with ceramics' },
+      { url: img('ceramic-bowl.jpg'), alt: 'Shelf grain detail' },
     ],
     variants: [
       { sku: 'ACC-OS-60', options: { size: '60 cm' }, price: 6500, stock: 6 },
@@ -683,8 +683,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1616486338812-3dadae4b4ace'), alt: 'Cedar drawer blocks set' },
-      { url: img('photo-1584100936595-c0654b55a2e2'), alt: 'Cedar blocks in linen drawer' },
+      { url: img('linen-room.jpg'), alt: 'Cedar drawer blocks set' },
+      { url: img('throw-texture.jpg'), alt: 'Cedar blocks in linen drawer' },
     ],
     variants: [
       { sku: 'ACC-CB-04', options: { size: 'Set of 4' }, price: 1600, stock: 60 },
@@ -783,15 +783,15 @@ export const discountCodes: DiscountCode[] = [
 ]
 
 export const instagramStrip = [
-  { id: 'ig-1', url: img('photo-1600618528240-fb9fc964b853', 600, 600), alt: 'Candle still life' },
-  { id: 'ig-2', url: img('photo-1616486338812-3dadae4b4ace', 600, 600), alt: 'Linen and light' },
-  { id: 'ig-3', url: img('photo-1578749556568-bc2c40e68b61', 600, 600), alt: 'Ceramic vessels' },
-  { id: 'ig-4', url: img('photo-1584100936595-c0654b55a2e2', 600, 600), alt: 'Throw textures' },
-  { id: 'ig-5', url: img('photo-1608571423902-eed4a5ad8108', 600, 600), alt: 'Diffuser styling' },
-  { id: 'ig-6', url: img('photo-1549465220-1a8b9238cd48', 600, 600), alt: 'Gift wrapping' },
+  { id: 'ig-1', url: img('ig-1.jpg'), alt: 'Candle still life' },
+  { id: 'ig-2', url: img('ig-2.jpg'), alt: 'Linen and light' },
+  { id: 'ig-3', url: img('ig-3.jpg'), alt: 'Ceramic vessels' },
+  { id: 'ig-4', url: img('ig-4.jpg'), alt: 'Throw textures' },
+  { id: 'ig-5', url: img('ig-5.jpg'), alt: 'Diffuser styling' },
+  { id: 'ig-6', url: img('ig-6.jpg'), alt: 'Gift wrapping' },
 ]
 
 export const heroImage = {
-  url: img('photo-1600618528240-fb9fc964b853', 1920, 1080),
+  url: img('hero.jpg'),
   alt: 'Warm candlelight across a considered living room',
 }
