@@ -9,3 +9,9 @@ verify_jwt = false
 
 [functions.submit-contact]
 verify_jwt = false
+
+[functions.subscribe-newsletter]
+verify_jwt = false
+
+[functions.track-order]
+verify_jwt = false

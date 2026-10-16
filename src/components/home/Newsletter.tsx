@@ -6,34 +6,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { store } from '@/config/store'
 import { useInViewFade } from '@/hooks/useInViewFade'
+import { subscribeNewsletterRemote } from '@/lib/checkoutApi'
 import { cn } from '@/lib/utils'
-
-const STORAGE_KEY = 'eo-newsletter-subscribers'
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 }
 
-function saveSubscriber(email: string): boolean {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    const list: string[] = raw ? (JSON.parse(raw) as string[]) : []
-    const normalized = email.trim().toLowerCase()
-    if (list.includes(normalized)) return false
-    list.push(normalized)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
-    return true
-  } catch {
-    return false
-  }
-}
-
 export function Newsletter() {
   const [email, setEmail] = useState('')
+  const [website, setWebsite] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const { ref, inView } = useInViewFade<HTMLElement>()
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
     const trimmed = email.trim()
@@ -45,13 +32,20 @@ export function Newsletter() {
       setError('Enter a valid email address.')
       return
     }
-    const added = saveSubscriber(trimmed)
-    if (added) {
-      toast.success('You’re on the list — thank you.')
-      setEmail('')
-    } else {
-      toast.message('This email is already subscribed.')
+    setSubmitting(true)
+    const result = await subscribeNewsletterRemote({
+      email: trimmed,
+      website: website || undefined,
+      source: 'home',
+    })
+    setSubmitting(false)
+    if (!result.ok) {
+      setError(result.message)
+      return
     }
+    toast.success('You’re on the list — thank you.')
+    setEmail('')
+    setWebsite('')
   }
 
   return (
@@ -77,7 +71,7 @@ export function Newsletter() {
         </p>
         <form
           className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-start"
-          onSubmit={onSubmit}
+          onSubmit={(e) => void onSubmit(e)}
           noValidate
         >
           <div className="flex-1 text-left">
@@ -104,8 +98,17 @@ export function Newsletter() {
               </p>
             ) : null}
           </div>
-          <Button type="submit" className="shrink-0 sm:min-w-[8.5rem]">
-            Subscribe
+          <div className="absolute -left-[9999px] opacity-0" aria-hidden>
+            <Input
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </div>
+          <Button type="submit" className="shrink-0 sm:min-w-[8.5rem]" disabled={submitting}>
+            {submitting ? '…' : 'Subscribe'}
           </Button>
         </form>
       </div>

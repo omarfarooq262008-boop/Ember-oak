@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { store } from '@/config/store'
+import { subscribeNewsletterRemote } from '@/lib/checkoutApi'
 import { cn } from '@/lib/utils'
 
 interface FooterProps {
@@ -39,6 +40,7 @@ function PaymentIcons() {
 
 export function Footer({ onSubscribe, className }: FooterProps) {
   const [email, setEmail] = useState('')
+  const [website, setWebsite] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
 
   const handleSubscribe = async (e: FormEvent) => {
@@ -53,10 +55,15 @@ export function Footer({ onSubscribe, className }: FooterProps) {
       if (onSubscribe) {
         await onSubscribe(trimmed)
       } else {
-        await new Promise((r) => setTimeout(r, 400))
-        console.info('[newsletter]', trimmed)
+        const result = await subscribeNewsletterRemote({
+          email: trimmed,
+          website: website || undefined,
+          source: 'footer',
+        })
+        if (!result.ok) throw new Error(result.message)
       }
       setEmail('')
+      setWebsite('')
       setStatus('done')
     } catch {
       setStatus('error')
@@ -140,7 +147,7 @@ export function Footer({ onSubscribe, className }: FooterProps) {
           <p className="mt-2 text-sm text-muted">
             New collections and restocks — no spam, unsubscribe anytime.
           </p>
-          <form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={handleSubscribe}>
+          <form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={(e) => void handleSubscribe(e)}>
             <Input
               type="email"
               name="email"
@@ -152,8 +159,17 @@ export function Footer({ onSubscribe, className }: FooterProps) {
               }}
               aria-label="Email for newsletter"
               autoComplete="email"
-              error={status === 'error'}
+              aria-invalid={status === 'error'}
             />
+            <div className="absolute -left-[9999px] opacity-0" aria-hidden>
+              <Input
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+              />
+            </div>
             <Button type="submit" disabled={status === 'loading'} className="shrink-0">
               {status === 'loading' ? '…' : 'Subscribe'}
             </Button>

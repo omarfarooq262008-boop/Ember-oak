@@ -13,6 +13,7 @@ import {
   fetchPriceBounds,
   fetchProductBySlug,
   fetchProductListThroughPage,
+  fetchProductsByIds,
   fetchRelatedProducts,
   searchProductsRemote,
   typoTolerantFilter,
@@ -55,6 +56,15 @@ export function useBestsellers(limit = 8) {
   return useQuery({
     queryKey: ['products', 'bestsellers', limit],
     queryFn: () => fetchBestsellers(limit),
+  })
+}
+
+export function useProductsByIds(ids: string[]) {
+  const key = useMemo(() => [...ids].sort().join(','), [ids])
+  return useQuery({
+    queryKey: ['products', 'by-ids', key],
+    queryFn: () => fetchProductsByIds(ids),
+    enabled: ids.length > 0,
   })
 }
 

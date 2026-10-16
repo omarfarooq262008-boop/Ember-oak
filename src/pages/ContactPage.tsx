@@ -6,36 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { store } from '@/config/store'
+import { submitContactRemote } from '@/lib/checkoutApi'
 import { cn } from '@/lib/utils'
 
-const STORAGE_KEY = 'eo-contact-messages'
-
-type ContactMessage = {
-  id: string
-  name: string
-  email: string
-  phone: string
-  message: string
-  createdAt: string
-}
-
 type FieldErrors = Partial<Record<'name' | 'email' | 'phone' | 'message', string>>
-
-function loadMessages(): ContactMessage[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? (parsed as ContactMessage[]) : []
-  } catch {
-    return []
-  }
-}
-
-function saveMessage(entry: ContactMessage) {
-  const existing = loadMessages()
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing, entry]))
-}
 
 export function ContactPage() {
   const { support } = store
@@ -43,6 +17,7 @@ export function ContactPage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [message, setMessage] = useState('')
+  const [website, setWebsite] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitting, setSubmitting] = useState(false)
 
@@ -73,36 +48,41 @@ export function ContactPage() {
       next.message = 'Please enter a message.'
     } else if (trimmedMessage.length < 10) {
       next.message = 'Message should be at least 10 characters.'
+    } else if (trimmedMessage.length > 2000) {
+      next.message = 'Message is too long (max 2000 characters).'
     }
 
     return next
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const nextErrors = validate()
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
     setSubmitting(true)
-    try {
-      saveMessage({
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        message: message.trim(),
-        createdAt: new Date().toISOString(),
-      })
-      toast.success('Message sent — we will reply within 1–2 working days.')
-      setName('')
-      setEmail('')
-      setPhone('')
-      setMessage('')
-      setErrors({})
-    } finally {
-      setSubmitting(false)
+    const result = await submitContactRemote({
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim() || undefined,
+      message: message.trim(),
+      website: website || undefined,
+    })
+    setSubmitting(false)
+
+    if (!result.ok) {
+      toast.error(result.message)
+      return
     }
+
+    toast.success('Message sent — we will reply within 1–2 working days.')
+    setName('')
+    setEmail('')
+    setPhone('')
+    setMessage('')
+    setWebsite('')
+    setErrors({})
   }
 
   return (
@@ -138,7 +118,7 @@ export function ContactPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-10 space-y-4" noValidate>
+        <form onSubmit={(e) => void handleSubmit(e)} className="mt-10 space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="contact-name">Name</Label>
             <Input
@@ -150,7 +130,7 @@ export function ContactPage() {
                 setName(e.target.value)
                 if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }))
               }}
-              error={Boolean(errors.name)}
+              aria-invalid={Boolean(errors.name)}
               aria-describedby={errors.name ? 'contact-name-error' : undefined}
             />
             {errors.name ? (
@@ -172,11 +152,10 @@ export function ContactPage() {
                 setEmail(e.target.value)
                 if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }))
               }}
-              error={Boolean(errors.email)}
-              aria-describedby={errors.email ? 'contact-email-error' : undefined}
+              aria-invalid={Boolean(errors.email)}
             />
             {errors.email ? (
-              <p id="contact-email-error" className="text-sm text-error" role="alert">
+              <p className="text-sm text-error" role="alert">
                 {errors.email}
               </p>
             ) : null}
@@ -189,17 +168,11 @@ export function ContactPage() {
               name="phone"
               type="tel"
               autoComplete="tel"
-              placeholder="+92 300 0000000"
               value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value)
-                if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }))
-              }}
-              error={Boolean(errors.phone)}
-              aria-describedby={errors.phone ? 'contact-phone-error' : undefined}
+              onChange={(e) => setPhone(e.target.value)}
             />
             {errors.phone ? (
-              <p id="contact-phone-error" className="text-sm text-error" role="alert">
+              <p className="text-sm text-error" role="alert">
                 {errors.phone}
               </p>
             ) : null}
@@ -211,26 +184,38 @@ export function ContactPage() {
               id="contact-message"
               name="message"
               rows={5}
+              maxLength={2000}
               value={message}
               onChange={(e) => {
                 setMessage(e.target.value)
                 if (errors.message) setErrors((prev) => ({ ...prev, message: undefined }))
               }}
-              aria-invalid={errors.message ? true : undefined}
-              aria-describedby={errors.message ? 'contact-message-error' : undefined}
               className={cn(
-                'flex min-h-[120px] w-full rounded-(--radius-sm) border border-border bg-surface px-4 py-3 text-sm text-text transition-[border-color] duration-200 placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                errors.message && 'border-error focus-visible:ring-error',
+                'flex w-full rounded-(--radius-sm) border border-border bg-background px-3 py-2 text-sm',
+                errors.message && 'border-error',
               )}
             />
             {errors.message ? (
-              <p id="contact-message-error" className="text-sm text-error" role="alert">
+              <p className="text-sm text-error" role="alert">
                 {errors.message}
               </p>
             ) : null}
           </div>
 
-          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+          {/* Honeypot — hidden from users */}
+          <div className="absolute -left-[9999px] opacity-0" aria-hidden>
+            <Label htmlFor="contact-website">Website</Label>
+            <Input
+              id="contact-website"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </div>
+
+          <Button type="submit" disabled={submitting}>
             {submitting ? 'Sending…' : 'Send message'}
           </Button>
         </form>

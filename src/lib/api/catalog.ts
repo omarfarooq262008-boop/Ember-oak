@@ -34,7 +34,7 @@ function client() {
   return supabase
 }
 
-async function fetchProductsByIds(
+async function fetchProductsByIdsInternal(
   ids: string[],
   detail = false,
 ): Promise<Product[]> {
@@ -52,6 +52,14 @@ async function fetchProductsByIds(
     rows.map((r) => [String(r.id), mapProduct(r as never)] as const),
   )
   return ids.map((id) => byId.get(id)).filter(Boolean) as Product[]
+}
+
+export async function fetchProductsByIds(ids: string[]): Promise<Product[]> {
+  if (ids.length === 0) return []
+  if (requireSupabaseOrFallback() === 'local') {
+    return local.localGetProductsByIds(ids)
+  }
+  return fetchProductsByIdsInternal(ids, false)
 }
 
 export async function fetchCategories(): Promise<Category[]> {

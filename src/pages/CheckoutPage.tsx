@@ -1,6 +1,7 @@
 import { Loader2Icon } from 'lucide-react'
-import { useMemo, useState, type FormEvent, type HTMLAttributes } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type HTMLAttributes } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { FreeDeliveryBar } from '@/components/cart/FreeDeliveryBar'
 import { Seo } from '@/components/seo/Seo'
@@ -8,16 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { store } from '@/config/store'
+import { useAuth } from '@/contexts/AuthContext'
 import { useCart } from '@/contexts/CartContext'
+import { createOrderRemote } from '@/lib/checkoutApi'
 import { formatPKR } from '@/lib/format'
-import {
-  generateOrderNumber,
-  generateOrderToken,
-  saveOrder,
-  type LocalOrder,
-} from '@/lib/orders'
 import { getCitiesForProvince, pakistanProvinces } from '@/lib/pakistan'
-import type { OrderStatus, PaymentMethod } from '@/types'
+import type { PaymentMethod } from '@/types'
 
 interface FormState {
   email: string
@@ -46,19 +43,6 @@ interface FormErrors {
   cardNumber?: string
   cardExpiry?: string
   cardCvc?: string
-}
-
-function initialStatus(method: PaymentMethod): OrderStatus {
-  switch (method) {
-    case 'cod':
-      return 'awaiting_fulfilment'
-    case 'bank_transfer':
-      return 'awaiting_payment'
-    case 'card':
-      return 'pending_payment'
-    default:
-      return 'awaiting_fulfilment'
-  }
 }
 
 function validateForm(values: FormState): FormErrors {
@@ -96,6 +80,7 @@ function validateForm(values: FormState): FormErrors {
 
 export function CheckoutPage() {
   const navigate = useNavigate()
+  const { user, profile } = useAuth()
   const {
     items,
     subtotal,
@@ -107,6 +92,12 @@ export function CheckoutPage() {
   } = useCart()
 
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const idempotencyKey = useRef(
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `idem_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+  )
   const [form, setForm] = useState<FormState>({
     email: '',
     phone: '',
@@ -122,6 +113,16 @@ export function CheckoutPage() {
     cardCvc: '',
   })
   const [errors, setErrors] = useState<FormErrors>({})
+
+  useEffect(() => {
+    if (!user) return
+    setForm((prev) => ({
+      ...prev,
+      email: prev.email || user.email || '',
+      phone: prev.phone || profile?.phone || '',
+      shippingName: prev.shippingName || profile?.full_name || '',
+    }))
+  }, [user, profile])
 
   const cities = useMemo(
     () => getCitiesForProvince(form.shippingProvince),
@@ -150,44 +151,50 @@ export function CheckoutPage() {
     if (Object.keys(nextErrors).length > 0) return
 
     setSubmitting(true)
-    await new Promise((r) => setTimeout(r, 500))
+    setSubmitError(null)
 
-    const order: LocalOrder = {
-      id: crypto.randomUUID?.() ?? `ord_${Date.now()}`,
-      order_number: generateOrderNumber(),
-      token: generateOrderToken(),
+    const result = await createOrderRemote({
       email: form.email.trim(),
-      status: initialStatus(form.paymentMethod),
-      payment_method: form.paymentMethod,
-      subtotal,
-      discount: discountAmount,
-      delivery_fee: deliveryFee,
-      total,
-      discount_code: discountCode,
-      shipping_name: form.shippingName.trim(),
-      shipping_phone: form.phone.trim(),
-      shipping_address: form.shippingAddress.trim(),
-      shipping_city: form.shippingCity,
-      shipping_province: form.shippingProvince,
-      shipping_postal: form.shippingPostal.trim() || null,
-      created_at: new Date().toISOString(),
+      phone: form.phone.trim(),
+      paymentMethod: form.paymentMethod,
+      discountCode: discountCode,
+      shipping: {
+        name: form.shippingName.trim(),
+        phone: form.phone.trim(),
+        address: form.shippingAddress.trim(),
+        city: form.shippingCity,
+        province: form.shippingProvince,
+        postal: form.shippingPostal.trim() || null,
+      },
       items: items.map((item) => ({
-        product_id: item.productId,
-        variant_id: item.variantId,
-        product_name: item.productName,
-        variant_label: item.variantLabel,
-        sku: item.sku,
-        unit_price: item.price,
+        variantId: item.variantId,
         quantity: item.quantity,
-        line_total: item.price * item.quantity,
       })),
+      idempotencyKey: idempotencyKey.current,
+    })
+
+    setSubmitting(false)
+
+    if (!result.ok) {
+      setSubmitError(result.message)
+      toast.error(result.message)
+      // New key only when not a transient double-submit of the same successful order
+      if (!result.message.toLowerCase().includes('only') ) {
+        /* keep same key for true retries of network blips on same cart */
+      }
+      return
     }
 
-    saveOrder(order)
     clear()
-    setSubmitting(false)
-    navigate(`/order-confirmation/${order.order_number}`, {
-      state: { order },
+    navigate(`/order-confirmation/${result.orderNumber}`, {
+      state: {
+        orderNumber: result.orderNumber,
+        status: result.status,
+        total: result.total,
+        trackingToken: result.trackingToken,
+        email: form.email.trim(),
+        paymentMethod: form.paymentMethod,
+      },
       replace: true,
     })
   }
@@ -213,7 +220,21 @@ export function CheckoutPage() {
 
       <div className="section-pad container-eo">
         <h1 className="text-3xl">Checkout</h1>
-        <p className="mt-2 text-sm text-muted">Guest checkout — no account required.</p>
+        <p className="mt-2 text-sm text-muted">
+          {user
+            ? 'Signed in — this order will appear in your account.'
+            : 'Guest checkout — no account required.'}{' '}
+          {!user ? (
+            <Link to="/login" className="underline hover:text-accent">
+              Log in
+            </Link>
+          ) : null}
+        </p>
+        {submitError ? (
+          <p className="mt-4 rounded-(--radius-card) border border-error/40 bg-surface px-4 py-3 text-sm text-error" role="alert">
+            {submitError}
+          </p>
+        ) : null}
 
         <form
           onSubmit={handleSubmit}

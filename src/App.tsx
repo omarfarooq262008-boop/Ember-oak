@@ -10,6 +10,7 @@ import { CollectionsIndexPage } from '@/pages/CollectionsIndexPage'
 import { ContactPage } from '@/pages/ContactPage'
 import { FaqPage } from '@/pages/FaqPage'
 import { HomePage } from '@/pages/HomePage'
+import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { OrderConfirmationPage } from '@/pages/OrderConfirmationPage'
 import { OrderTrackingPage } from '@/pages/OrderTrackingPage'
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
       { path: 'privacy', element: <PrivacyPage /> },
       { path: 'terms', element: <TermsPage /> },
       { path: 'account', element: <AccountPage /> },
+      { path: 'login', element: <LoginPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

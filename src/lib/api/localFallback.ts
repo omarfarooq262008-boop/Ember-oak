@@ -80,6 +80,11 @@ export function localGetProductBySlug(slug: string): Product | null {
   return activeProducts().find((p) => p.slug === slug) ?? null
 }
 
+export function localGetProductsByIds(ids: string[]): Product[] {
+  const byId = new Map(activeProducts().map((p) => [p.id, p]))
+  return ids.map((id) => byId.get(id)).filter(Boolean) as Product[]
+}
+
 export function localListProducts(
   filters: ProductListFilters,
 ): { items: Product[]; total: number } {

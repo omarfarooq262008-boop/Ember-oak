@@ -9,8 +9,8 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 
-import { store } from '@/config/store'
 import { checkDiscountCode } from '@/lib/validateDiscount'
+import { computeDeliveryFee } from '@/lib/pricing'
 import type { CartItem } from '@/types'
 
 const STORAGE_KEY = 'eo-cart-v1'
@@ -84,12 +84,6 @@ function writeStorage(state: CartState) {
   } catch {
     /* quota or private mode */
   }
-}
-
-function computeDeliveryFee(subtotalAfterDiscount: number): number {
-  const { freeAbovePKR, flatFeePKR } = store.delivery
-  if (subtotalAfterDiscount >= freeAbovePKR) return 0
-  return flatFeePKR
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {

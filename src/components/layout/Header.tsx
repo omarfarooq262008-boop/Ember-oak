@@ -18,6 +18,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { store } from '@/config/store'
+import { useAuth } from '@/contexts/AuthContext'
 import { useCart } from '@/contexts/CartContext'
 import { useCategories, useCollections } from '@/hooks/useCatalog'
 import { useScrollShrink } from '@/hooks/useScrollShrink'
@@ -25,6 +26,7 @@ import { cn } from '@/lib/utils'
 
 export function Header() {
   const shrunk = useScrollShrink(32)
+  const { user, loading: authLoading } = useAuth()
   const { itemCount, openCart } = useCart()
   const [pop, setPop] = useState(false)
   const prevCount = useRef(itemCount)
@@ -218,8 +220,24 @@ export function Header() {
             >
               <SearchIcon className="size-5" aria-hidden />
             </Button>
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/account" aria-label="Account">
+            {!authLoading && user ? (
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+                <Link to="/account" aria-label="Account">
+                  Account
+                </Link>
+              </Button>
+            ) : !authLoading ? (
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+                <Link to="/login" aria-label="Log in">
+                  Login
+                </Link>
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="icon" className="sm:hidden" asChild>
+              <Link
+                to={user ? '/account' : '/login'}
+                aria-label={user ? 'Account' : 'Log in'}
+              >
                 <UserIcon className="size-5" aria-hidden />
               </Link>
             </Button>

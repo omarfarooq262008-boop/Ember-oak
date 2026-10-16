@@ -5,8 +5,16 @@ import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { store } from '@/config/store'
 import { formatPKR } from '@/lib/format'
-import type { LocalOrder } from '@/lib/orders'
 import type { PaymentMethod } from '@/types'
+
+type ConfirmationState = {
+  orderNumber?: string
+  status?: string
+  total?: number
+  trackingToken?: string
+  email?: string
+  paymentMethod?: PaymentMethod
+}
 
 function nextSteps(method: PaymentMethod): string[] {
   switch (method) {
@@ -24,8 +32,8 @@ function nextSteps(method: PaymentMethod): string[] {
       ]
     case 'card':
       return [
-        'Your card payment is being processed (demo mock provider).',
-        'You will receive an email once payment is confirmed.',
+        'Your card payment is pending (demo mock provider).',
+        'The order stays unpaid until a real payment provider confirms it — never from the browser.',
         'We will dispatch as soon as payment clears.',
       ]
     default:
@@ -34,15 +42,20 @@ function nextSteps(method: PaymentMethod): string[] {
 }
 
 export function OrderConfirmationPage() {
-  const { orderNumber = '' } = useParams<{ orderNumber: string }>()
+  const { orderNumber: paramNumber = '' } = useParams<{ orderNumber: string }>()
   const location = useLocation()
-  const order = (location.state as { order?: LocalOrder } | null)?.order
+  const state = (location.state as ConfirmationState | null) ?? {}
 
-  const displayNumber = order?.order_number ?? orderNumber
-  const paymentMethod = order?.payment_method ?? 'cod'
-  const total = order?.total
-  const email = order?.email
+  const displayNumber = state.orderNumber ?? paramNumber
+  const paymentMethod = state.paymentMethod ?? 'cod'
+  const total = state.total
+  const email = state.email
+  const trackingToken = state.trackingToken
   const steps = nextSteps(paymentMethod)
+
+  const trackHref = trackingToken
+    ? `/track-order?token=${encodeURIComponent(trackingToken)}`
+    : `/track-order?order=${encodeURIComponent(displayNumber)}`
 
   return (
     <>
@@ -58,7 +71,12 @@ export function OrderConfirmationPage() {
           <p className="font-display text-xl font-bold tabular-nums">{displayNumber}</p>
           {total != null ? (
             <p className="mt-2 text-sm">
-              Total paid: <span className="font-medium tabular-nums">{formatPKR(total)}</span>
+              Total: <span className="font-medium tabular-nums">{formatPKR(total)}</span>
+            </p>
+          ) : null}
+          {state.status === 'pending_payment' ? (
+            <p className="mt-2 text-sm text-muted">
+              Status: pending payment (card mock — not marked paid from the browser).
             </p>
           ) : null}
         </div>
@@ -73,16 +91,19 @@ export function OrderConfirmationPage() {
         </div>
 
         <p className="mt-8 text-sm text-muted">
-          A confirmation email will be sent to{' '}
-          <span className="font-medium text-text">{email ?? 'the address you provided'}</span>{' '}
-          once our demo checkout is connected to email delivery.
+          Keep this order number. Confirmation emails will be wired in a later step
+          {email ? (
+            <>
+              {' '}
+              for <span className="font-medium text-text">{email}</span>
+            </>
+          ) : null}
+          .
         </p>
 
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button asChild variant="secondary">
-            <Link to={`/track-order?order=${encodeURIComponent(displayNumber)}`}>
-              Track order
-            </Link>
+            <Link to={trackHref}>Track order</Link>
           </Button>
           <Button asChild>
             <Link to="/shop">Continue shopping</Link>
