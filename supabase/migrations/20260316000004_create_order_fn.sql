@@ -1,6 +1,9 @@
 -- Atomic checkout RPC for create-order Edge Function.
 -- Safe to run twice (CREATE OR REPLACE + re-grant).
 -- Prices, discount, delivery and totals are always recomputed from the database.
+-- pgcrypto lives in schema extensions on Supabase — never call unqualified gen_random_bytes.
+
+create extension if not exists pgcrypto with schema extensions;
 
 create or replace function public.create_order_atomic(
   p_email text,
@@ -46,6 +49,8 @@ declare
   v_dc public.discount_codes%rowtype;
   v_status text;
   v_order_number text;
+  v_tracking_token text;
+  v_attempts int := 0;
   v_order public.orders%rowtype;
   v_lines jsonb := '[]'::jsonb;
   v_line jsonb;
@@ -219,48 +224,82 @@ begin
     v_status := 'awaiting_fulfilment';
   end if;
 
-  v_order_number := 'EO-' || upper(substr(encode(gen_random_bytes(5), 'hex'), 1, 8));
+  -- Order number: UUID-derived (not a counter); retry on rare unique collisions.
+  -- Tracking token: 256 bits from two UUIDs (avoids extensions.gen_random_bytes / broken search_path).
+  loop
+    v_attempts := v_attempts + 1;
+    v_order_number :=
+      'EO-' || upper(replace(extensions.gen_random_uuid()::text, '-', ''));
+    v_tracking_token := encode(
+      uuid_send(extensions.gen_random_uuid())
+        || uuid_send(extensions.gen_random_uuid()),
+      'hex'
+    );
 
-  insert into public.orders (
-    order_number,
-    user_id,
-    email,
-    phone,
-    status,
-    payment_method,
-    subtotal,
-    discount,
-    delivery_fee,
-    total,
-    discount_code,
-    shipping_name,
-    shipping_phone,
-    shipping_address,
-    shipping_city,
-    shipping_province,
-    shipping_postal,
-    idempotency_key
-  ) values (
-    v_order_number,
-    p_user_id,
-    lower(trim(p_email)),
-    trim(p_phone),
-    v_status,
-    p_payment_method,
-    v_subtotal,
-    v_discount,
-    v_delivery,
-    v_total,
-    v_code,
-    trim(p_shipping_name),
-    trim(p_shipping_phone),
-    trim(p_shipping_address),
-    trim(p_shipping_city),
-    trim(p_shipping_province),
-    nullif(trim(coalesce(p_shipping_postal, '')), ''),
-    p_idempotency_key
-  )
-  returning * into v_order;
+    begin
+      insert into public.orders (
+        order_number,
+        user_id,
+        email,
+        phone,
+        status,
+        payment_method,
+        subtotal,
+        discount,
+        delivery_fee,
+        total,
+        discount_code,
+        shipping_name,
+        shipping_phone,
+        shipping_address,
+        shipping_city,
+        shipping_province,
+        shipping_postal,
+        tracking_token,
+        idempotency_key
+      ) values (
+        v_order_number,
+        p_user_id,
+        lower(trim(p_email)),
+        trim(p_phone),
+        v_status,
+        p_payment_method,
+        v_subtotal,
+        v_discount,
+        v_delivery,
+        v_total,
+        v_code,
+        trim(p_shipping_name),
+        trim(p_shipping_phone),
+        trim(p_shipping_address),
+        trim(p_shipping_city),
+        trim(p_shipping_province),
+        nullif(trim(coalesce(p_shipping_postal, '')), ''),
+        v_tracking_token,
+        p_idempotency_key
+      )
+      returning * into v_order;
+      exit;
+    exception
+      when unique_violation then
+        select * into v_existing
+        from public.orders
+        where idempotency_key = p_idempotency_key;
+        if found then
+          return jsonb_build_object(
+            'order_id', v_existing.id,
+            'order_number', v_existing.order_number,
+            'status', v_existing.status,
+            'total', v_existing.total,
+            'tracking_token', v_existing.tracking_token,
+            'idempotent', true
+          );
+        end if;
+        if v_attempts >= 8 then
+          raise exception 'ORDER_NUMBER_COLLISION' using errcode = 'P0001';
+        end if;
+    end;
+  end loop;
 
   insert into public.order_items (
     order_id,
