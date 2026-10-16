@@ -1,5 +1,5 @@
+import { AlertCircleIcon, CheckCircle2Icon, Loader2Icon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { toast } from 'sonner'
 
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
@@ -9,17 +9,22 @@ import { store } from '@/config/store'
 import { submitContactRemote } from '@/lib/checkoutApi'
 import { cn } from '@/lib/utils'
 
-type FieldErrors = Partial<Record<'name' | 'email' | 'phone' | 'message', string>>
+type FieldErrors = Partial<
+  Record<'name' | 'email' | 'phone' | 'orderNumber' | 'message', string>
+>
 
 export function ContactPage() {
   const { support } = store
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
   const [message, setMessage] = useState('')
   const [website, setWebsite] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [formSuccess, setFormSuccess] = useState<string | null>(null)
 
   const validate = (): FieldErrors => {
     const next: FieldErrors = {}
@@ -57,6 +62,8 @@ export function ContactPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    setFormError(null)
+    setFormSuccess(null)
     const nextErrors = validate()
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
@@ -66,20 +73,22 @@ export function ContactPage() {
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim() || undefined,
+      orderNumber: orderNumber.trim() || undefined,
       message: message.trim(),
       website: website || undefined,
     })
     setSubmitting(false)
 
     if (!result.ok) {
-      toast.error(result.message)
+      setFormError(result.message)
       return
     }
 
-    toast.success('Message sent — we will reply within 1–2 working days.')
+    setFormSuccess('Message sent — we will reply within 1–2 working days.')
     setName('')
     setEmail('')
     setPhone('')
+    setOrderNumber('')
     setMessage('')
     setWebsite('')
     setErrors({})
@@ -102,12 +111,18 @@ export function ContactPage() {
 
         <div className="mt-8 space-y-2 text-sm text-muted">
           <p>
-            <a href={`mailto:${support.email}`} className="font-medium text-text hover:text-accent">
+            <a
+              href={`mailto:${support.email}`}
+              className="font-medium text-text hover:text-accent"
+            >
               {support.email}
             </a>
           </p>
           <p>
-            <a href={`tel:${support.phone.replace(/\s/g, '')}`} className="hover:text-accent">
+            <a
+              href={`tel:${support.phone.replace(/\s/g, '')}`}
+              className="hover:text-accent"
+            >
               {support.phone}
             </a>
           </p>
@@ -116,9 +131,19 @@ export function ContactPage() {
               WhatsApp {support.whatsapp}
             </a>
           </p>
+          <p className="pt-2">
+            {support.address.line1}, {support.address.line2}
+            <br />
+            {support.address.city}, {support.address.province}{' '}
+            {support.address.postalCode}
+          </p>
         </div>
 
-        <form onSubmit={(e) => void handleSubmit(e)} className="mt-10 space-y-4" noValidate>
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="relative mt-10 space-y-4"
+          noValidate
+        >
           <div className="space-y-2">
             <Label htmlFor="contact-name">Name</Label>
             <Input
@@ -131,10 +156,9 @@ export function ContactPage() {
                 if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }))
               }}
               aria-invalid={Boolean(errors.name)}
-              aria-describedby={errors.name ? 'contact-name-error' : undefined}
             />
             {errors.name ? (
-              <p id="contact-name-error" className="text-sm text-error" role="alert">
+              <p className="text-sm text-error" role="alert">
                 {errors.name}
               </p>
             ) : null}
@@ -179,6 +203,18 @@ export function ContactPage() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="contact-order">Order number (optional)</Label>
+            <Input
+              id="contact-order"
+              name="orderNumber"
+              autoComplete="off"
+              placeholder="EO-…"
+              value={orderNumber}
+              onChange={(e) => setOrderNumber(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="contact-message">Message</Label>
             <textarea
               id="contact-message"
@@ -188,7 +224,8 @@ export function ContactPage() {
               value={message}
               onChange={(e) => {
                 setMessage(e.target.value)
-                if (errors.message) setErrors((prev) => ({ ...prev, message: undefined }))
+                if (errors.message)
+                  setErrors((prev) => ({ ...prev, message: undefined }))
               }}
               className={cn(
                 'flex w-full rounded-(--radius-sm) border border-border bg-background px-3 py-2 text-sm',
@@ -202,7 +239,7 @@ export function ContactPage() {
             ) : null}
           </div>
 
-          {/* Honeypot — hidden from users */}
+          {/* Honeypot */}
           <div className="absolute -left-[9999px] opacity-0" aria-hidden>
             <Label htmlFor="contact-website">Website</Label>
             <Input
@@ -215,8 +252,30 @@ export function ContactPage() {
             />
           </div>
 
+          <div aria-live="polite" aria-atomic="true" className="min-h-[1.5rem]">
+            {formError ? (
+              <p className="flex items-start gap-2 text-sm text-error" role="alert">
+                <AlertCircleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>{formError}</span>
+              </p>
+            ) : null}
+            {formSuccess ? (
+              <p className="flex items-start gap-2 text-sm text-success" role="status">
+                <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>{formSuccess}</span>
+              </p>
+            ) : null}
+          </div>
+
           <Button type="submit" disabled={submitting}>
-            {submitting ? 'Sending…' : 'Send message'}
+            {submitting ? (
+              <>
+                <Loader2Icon className="size-4 animate-spin" aria-hidden />
+                Sending…
+              </>
+            ) : (
+              'Send message'
+            )}
           </Button>
         </form>
       </div>

@@ -1,6 +1,7 @@
 import { MinusIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import { DiscountCodeField } from '@/components/cart/DiscountCodeField'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -150,6 +151,12 @@ export function CartDrawer() {
                 />
               </div>
             </div>
+
+            <DiscountCodeField
+              idPrefix="drawer"
+              compact
+              className="w-full border-t border-border pt-3"
+            />
 
             <dl className="w-full space-y-2 text-sm">
               <div className="flex justify-between">

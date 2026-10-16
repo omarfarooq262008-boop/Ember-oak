@@ -20,6 +20,11 @@ const footerLinks = [
   { label: 'Terms', href: '/terms' },
 ] as const
 
+const supportLinks = [
+  { label: 'Contact', href: '/contact' },
+  { label: 'Track order', href: '/track-order' },
+] as const
+
 function PaymentIcons() {
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted">
@@ -99,7 +104,21 @@ export function Footer({ onSubscribe, className }: FooterProps) {
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Help</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Support
+          </h2>
+          <ul className="mt-4 space-y-2">
+            {supportLinks.map((link) => (
+              <li key={link.href}>
+                <Link to={link.href} className="text-sm hover:text-accent">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted">
+            Help
+          </h2>
           <ul className="mt-4 space-y-2">
             {footerLinks.map((link) => (
               <li key={link.href}>

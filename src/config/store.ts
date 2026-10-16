@@ -111,6 +111,7 @@ export const store = {
       { label: 'Collections', href: '/collections' },
       { label: 'New Arrivals', href: '/shop?sort=newest' },
       { label: 'About', href: '/about' },
+      { label: 'Contact', href: '/contact' },
     ],
   },
 

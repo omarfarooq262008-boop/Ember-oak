@@ -129,6 +129,13 @@ export function Header() {
                   >
                     About
                   </Link>
+                  <Link
+                    to="/contact"
+                    className="touch-target flex items-center px-2 text-base font-medium"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Contact
+                  </Link>
                   <Button
                     type="button"
                     variant="secondary"

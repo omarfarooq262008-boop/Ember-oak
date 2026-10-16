@@ -2,11 +2,27 @@
  * Shared storefront pricing helpers (mirrors create_order_atomic delivery rules).
  * Browser may preview totals; the database always recomputes the real charge.
  */
+import { evaluateDiscountAgainstRules } from '@/lib/discountReasons'
+import {
+  computeDiscountAmount as computeDiscountAmountCore,
+  type DiscountRule as DiscountRuleCore,
+  type DiscountType as DiscountTypeCore,
+} from '@/lib/pricingCore'
+
+export {
+  buildDiscountRuleSummary,
+  evaluateDiscountAgainstRules,
+  evaluateDiscountRow,
+  messageForDiscountReason,
+  type DiscountOutcome,
+  type DiscountReason,
+} from '@/lib/discountReasons'
 
 export const FREE_DELIVERY_ABOVE_PKR = 8000
 export const FLAT_DELIVERY_FEE_PKR = 250
 
-export type DiscountType = 'percent' | 'fixed'
+export type DiscountType = DiscountTypeCore
+export type DiscountRule = DiscountRuleCore
 
 export function computeLineTotal(unitPrice: number, quantity: number): number {
   if (unitPrice < 0 || quantity < 0) return 0
@@ -27,11 +43,7 @@ export function computeDiscountAmount(
   type: DiscountType,
   value: number,
 ): number {
-  if (subtotal <= 0 || value <= 0) return 0
-  if (type === 'percent') {
-    return Math.floor((subtotal * value) / 100)
-  }
-  return Math.min(subtotal, value)
+  return computeDiscountAmountCore(subtotal, type, value)
 }
 
 export function computeDeliveryFee(subtotalAfterDiscount: number): number {
@@ -52,18 +64,7 @@ export function computeOrderTotal(
   }
 }
 
-export type DiscountRule = {
-  code: string
-  type: DiscountType
-  value: number
-  min_spend: number | null
-  max_uses: number | null
-  used_count: number
-  starts_at: string | null
-  ends_at: string | null
-  is_active: boolean
-}
-
+/** Thin wrapper kept for older call sites */
 export function evaluateDiscountCode(
   code: string,
   subtotal: number,
@@ -72,42 +73,13 @@ export function evaluateDiscountCode(
 ):
   | { valid: true; code: string; discountAmount: number }
   | { valid: false; message: string } {
-  const normalized = code.trim().toUpperCase()
-  if (!normalized) {
-    return { valid: false, message: 'Enter a discount code.' }
-  }
-
-  const match = rules.find(
-    (dc) => dc.is_active && dc.code.toUpperCase() === normalized,
-  )
-  if (!match) {
-    return { valid: false, message: 'This code is not valid.' }
-  }
-
-  const t = now.getTime()
-  if (match.starts_at && new Date(match.starts_at).getTime() > t) {
-    return { valid: false, message: 'This code is not active yet.' }
-  }
-  if (match.ends_at && new Date(match.ends_at).getTime() < t) {
-    return { valid: false, message: 'This code has expired.' }
-  }
-  if (match.max_uses != null && match.used_count >= match.max_uses) {
-    return { valid: false, message: 'This code has reached its usage limit.' }
-  }
-  if (match.min_spend != null && subtotal < match.min_spend) {
+  const outcome = evaluateDiscountAgainstRules(code, subtotal, rules, now)
+  if (outcome.valid) {
     return {
-      valid: false,
-      message: `Minimum spend is PKR ${match.min_spend.toLocaleString('en-PK')}.`,
+      valid: true,
+      code: outcome.code,
+      discountAmount: outcome.discountAmount,
     }
   }
-
-  const discountAmount = computeDiscountAmount(subtotal, match.type, match.value)
-  if (discountAmount <= 0) {
-    return {
-      valid: false,
-      message: 'This code cannot be applied to your cart.',
-    }
-  }
-
-  return { valid: true, code: match.code, discountAmount }
+  return { valid: false, message: outcome.message }
 }

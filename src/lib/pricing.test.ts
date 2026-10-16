@@ -93,9 +93,9 @@ describe('evaluateDiscountCode', () => {
 
   it('rejects unknown codes without leaking others', () => {
     const result = evaluateDiscountCode('SECRET99', 9000, sampleRules)
-    expect(result).toEqual({
-      valid: false,
-      message: 'This code is not valid.',
-    })
+    expect(result.valid).toBe(false)
+    if (!result.valid) {
+      expect(result.message).toMatch(/couldn't find that code/i)
+    }
   })
 })

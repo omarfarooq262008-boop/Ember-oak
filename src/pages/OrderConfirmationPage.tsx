@@ -109,6 +109,13 @@ export function OrderConfirmationPage() {
             <Link to="/shop">Continue shopping</Link>
           </Button>
         </div>
+
+        <p className="mt-10 text-sm text-muted">
+          Need help with your order?{' '}
+          <Link to="/contact" className="font-medium text-text underline hover:text-accent">
+            Contact us
+          </Link>
+        </p>
       </div>
     </>
   )

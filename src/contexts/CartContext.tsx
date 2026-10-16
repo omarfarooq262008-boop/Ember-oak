@@ -19,6 +19,7 @@ interface CartState {
   items: CartItem[]
   discountCode: string | null
   discountAmount: number
+  discountRuleSummary: string | null
 }
 
 interface AddItemInput {
@@ -36,6 +37,11 @@ interface AddItemInput {
   maxStock: number
 }
 
+export type DiscountFeedback = {
+  tone: 'success' | 'error' | 'info'
+  message: string
+} | null
+
 interface CartContextValue {
   items: CartItem[]
   itemCount: number
@@ -43,6 +49,9 @@ interface CartContextValue {
   deliveryFee: number
   discountAmount: number
   discountCode: string | null
+  discountRuleSummary: string | null
+  discountFeedback: DiscountFeedback
+  clearDiscountFeedback: () => void
   total: number
   cartOpen: boolean
   openCart: () => void
@@ -54,7 +63,7 @@ interface CartContextValue {
   clear: () => void
   applyDiscount: (
     code: string,
-  ) => Promise<{ ok: true } | { ok: false; message: string }>
+  ) => Promise<{ ok: true; message: string } | { ok: false; message: string }>
   clearDiscount: () => void
 }
 
@@ -62,19 +71,37 @@ const CartContext = createContext<CartContextValue | null>(null)
 
 function readStorage(): CartState {
   if (typeof window === 'undefined') {
-    return { items: [], discountCode: null, discountAmount: 0 }
+    return {
+      items: [],
+      discountCode: null,
+      discountAmount: 0,
+      discountRuleSummary: null,
+    }
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { items: [], discountCode: null, discountAmount: 0 }
+    if (!raw) {
+      return {
+        items: [],
+        discountCode: null,
+        discountAmount: 0,
+        discountRuleSummary: null,
+      }
+    }
     const parsed = JSON.parse(raw) as CartState
     return {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       discountCode: parsed.discountCode ?? null,
       discountAmount: parsed.discountAmount ?? 0,
+      discountRuleSummary: parsed.discountRuleSummary ?? null,
     }
   } catch {
-    return { items: [], discountCode: null, discountAmount: 0 }
+    return {
+      items: [],
+      discountCode: null,
+      discountAmount: 0,
+      discountRuleSummary: null,
+    }
   }
 }
 
@@ -89,6 +116,8 @@ function writeStorage(state: CartState) {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<CartState>(() => readStorage())
   const [cartOpen, setCartOpen] = useState(false)
+  const [discountFeedback, setDiscountFeedback] =
+    useState<DiscountFeedback>(null)
 
   useEffect(() => {
     writeStorage(state)
@@ -116,6 +145,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const openCart = useCallback(() => setCartOpen(true), [])
   const closeCart = useCallback(() => setCartOpen(false), [])
+  const clearDiscountFeedback = useCallback(() => setDiscountFeedback(null), [])
 
   const addItem = useCallback((input: AddItemInput) => {
     const qty = input.quantity ?? 1
@@ -156,7 +186,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const updateQty = useCallback((variantId: string, quantity: number) => {
     setState((prev) => {
       if (quantity <= 0) {
-        return { ...prev, items: prev.items.filter((i) => i.variantId !== variantId) }
+        return {
+          ...prev,
+          items: prev.items.filter((i) => i.variantId !== variantId),
+        }
       }
       return {
         ...prev,
@@ -177,31 +210,47 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const clear = useCallback(() => {
-    setState({ items: [], discountCode: null, discountAmount: 0 })
+    setState({
+      items: [],
+      discountCode: null,
+      discountAmount: 0,
+      discountRuleSummary: null,
+    })
+    setDiscountFeedback(null)
   }, [])
 
   const applyDiscount = useCallback(
     async (
       code: string,
-    ): Promise<{ ok: true } | { ok: false; message: string }> => {
-      const result = await checkDiscountCode(code, subtotal)
+    ): Promise<{ ok: true; message: string } | { ok: false; message: string }> => {
+      const result = await checkDiscountCode(code.trim(), subtotal)
       if (!result.valid) {
+        setDiscountFeedback({ tone: 'error', message: result.message })
         return { ok: false, message: result.message }
       }
       setState((prev) => ({
         ...prev,
         discountCode: result.code,
         discountAmount: result.discountAmount,
+        discountRuleSummary: result.ruleSummary || null,
       }))
-      return { ok: true }
+      setDiscountFeedback({ tone: 'success', message: result.message })
+      return { ok: true, message: result.message }
     },
     [subtotal],
   )
 
   const clearDiscount = useCallback(() => {
-    setState((prev) => ({ ...prev, discountCode: null, discountAmount: 0 }))
+    setState((prev) => ({
+      ...prev,
+      discountCode: null,
+      discountAmount: 0,
+      discountRuleSummary: null,
+    }))
+    setDiscountFeedback(null)
   }, [])
 
+  // Re-validate when cart subtotal changes
   useEffect(() => {
     const code = state.discountCode
     if (!code) return
@@ -213,13 +262,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
           ...prev,
           discountCode: null,
           discountAmount: 0,
+          discountRuleSummary: null,
         }))
+        setDiscountFeedback({ tone: 'error', message: result.message })
         return
       }
+      const nextSummary = result.ruleSummary || null
+      const amountChanged = state.discountAmount !== result.discountAmount
       setState((prev) => {
         if (
           prev.discountCode === result.code &&
-          prev.discountAmount === result.discountAmount
+          prev.discountAmount === result.discountAmount &&
+          prev.discountRuleSummary === nextSummary
         ) {
           return prev
         }
@@ -227,8 +281,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
           ...prev,
           discountCode: result.code,
           discountAmount: result.discountAmount,
+          discountRuleSummary: nextSummary,
         }
       })
+      if (amountChanged) {
+        setDiscountFeedback({ tone: 'success', message: result.message })
+      }
     })
     return () => {
       cancelled = true
@@ -243,6 +301,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       deliveryFee,
       discountAmount: state.discountAmount,
       discountCode: state.discountCode,
+      discountRuleSummary: state.discountRuleSummary,
+      discountFeedback,
+      clearDiscountFeedback,
       total,
       cartOpen,
       openCart,
@@ -259,6 +320,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       state.items,
       state.discountAmount,
       state.discountCode,
+      state.discountRuleSummary,
+      discountFeedback,
+      clearDiscountFeedback,
       itemCount,
       subtotal,
       deliveryFee,

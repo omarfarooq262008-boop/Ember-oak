@@ -15,6 +15,7 @@ const BodySchema = z.object({
   name: z.string().min(2).max(120),
   email: z.string().email().max(254),
   phone: z.string().max(20).optional().nullable(),
+  orderNumber: z.string().max(40).optional().nullable(),
   message: z.string().min(10).max(2000),
   /** Honeypot — must be empty */
   website: z.string().max(0).optional().nullable(),
@@ -69,11 +70,16 @@ Deno.serve(async (req) => {
     await admin.from('rate_limits').update({ count: rl.count + 1 }).eq('id', limitId)
   }
 
+  const orderRef = parsed.data.orderNumber?.trim()
+  const body = orderRef
+    ? `Order number: ${orderRef}\n\n${parsed.data.message.trim()}`
+    : parsed.data.message.trim()
+
   const { error } = await admin.from('contact_messages').insert({
     name: parsed.data.name.trim(),
     email: parsed.data.email.trim().toLowerCase(),
     phone: parsed.data.phone?.trim() || null,
-    message: parsed.data.message.trim(),
+    message: body,
   })
 
   if (error) {

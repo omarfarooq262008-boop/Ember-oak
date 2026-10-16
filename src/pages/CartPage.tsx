@@ -1,12 +1,10 @@
 import { MinusIcon, PlusIcon, Trash2Icon } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
+import { DiscountCodeField } from '@/components/cart/DiscountCodeField'
 import { FreeDeliveryBar } from '@/components/cart/FreeDeliveryBar'
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { SoftImage } from '@/components/ui/soft-image'
 import { useCart } from '@/contexts/CartContext'
 import { formatPKR } from '@/lib/format'
@@ -17,38 +15,12 @@ export function CartPage() {
     subtotal,
     deliveryFee,
     discountAmount,
-    discountCode,
     total,
     updateQty,
     removeItem,
-    applyDiscount,
-    clearDiscount,
   } = useCart()
 
-  const [codeInput, setCodeInput] = useState(discountCode ?? '')
-  const [codeError, setCodeError] = useState<string | null>(null)
-  const [codeSuccess, setCodeSuccess] = useState(false)
-
   const afterDiscount = Math.max(0, subtotal - discountAmount)
-
-  const handleApplyCode = async (e: FormEvent) => {
-    e.preventDefault()
-    setCodeError(null)
-    setCodeSuccess(false)
-    const result = await applyDiscount(codeInput)
-    if (!result.ok) {
-      setCodeError(result.message)
-      return
-    }
-    setCodeSuccess(true)
-  }
-
-  const handleClearCode = () => {
-    clearDiscount()
-    setCodeInput('')
-    setCodeError(null)
-    setCodeSuccess(false)
-  }
 
   return (
     <>
@@ -148,39 +120,7 @@ export function CartPage() {
             <aside className="space-y-6 rounded-(--radius-card) border border-border bg-surface p-6 lg:sticky lg:top-24">
               <FreeDeliveryBar subtotalAfterDiscount={afterDiscount} />
 
-              <form onSubmit={handleApplyCode} className="space-y-2">
-                <Label htmlFor="discount-code">Discount code</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="discount-code"
-                    name="discount"
-                    autoComplete="off"
-                    value={codeInput}
-                    onChange={(e) => setCodeInput(e.target.value)}
-                    placeholder="Enter code"
-                    aria-invalid={codeError ? true : undefined}
-                    aria-describedby={codeError ? 'discount-error' : undefined}
-                  />
-                  <Button type="submit" variant="secondary">
-                    Apply
-                  </Button>
-                </div>
-                {codeError ? (
-                  <p id="discount-error" className="text-sm text-error" role="alert">
-                    {codeError}
-                  </p>
-                ) : null}
-                {codeSuccess && discountCode ? (
-                  <p className="text-sm text-success" role="status">
-                    Code {discountCode} applied.
-                  </p>
-                ) : null}
-                {discountCode ? (
-                  <Button type="button" variant="ghost" size="sm" onClick={handleClearCode}>
-                    Remove code
-                  </Button>
-                ) : null}
-              </form>
+              <DiscountCodeField idPrefix="cart" />
 
               <dl className="space-y-2 border-t border-border pt-4 text-sm">
                 <div className="flex justify-between">

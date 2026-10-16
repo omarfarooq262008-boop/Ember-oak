@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type HTMLAttribut
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { DiscountCodeField } from '@/components/cart/DiscountCodeField'
 import { FreeDeliveryBar } from '@/components/cart/FreeDeliveryBar'
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
@@ -465,6 +466,8 @@ export function CheckoutPage() {
 
             <FreeDeliveryBar subtotalAfterDiscount={afterDiscount} />
 
+            <DiscountCodeField idPrefix="checkout" />
+
             <dl className="space-y-2 border-t border-border pt-4 text-sm">
               <div className="flex justify-between">
                 <dt className="text-muted">Subtotal</dt>
@@ -472,7 +475,12 @@ export function CheckoutPage() {
               </div>
               {discountAmount > 0 ? (
                 <div className="flex justify-between text-success">
-                  <dt>Discount</dt>
+                  <dt>
+                    Discount
+                    {discountCode ? (
+                      <span className="font-normal text-muted"> ({discountCode})</span>
+                    ) : null}
+                  </dt>
                   <dd className="tabular-nums">−{formatPKR(discountAmount)}</dd>
                 </div>
               ) : null}

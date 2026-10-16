@@ -145,6 +145,7 @@ export async function submitContactRemote(input: {
   name: string
   email: string
   phone?: string
+  orderNumber?: string
   message: string
   website?: string
 }): Promise<{ ok: true } | { ok: false; message: string }> {
