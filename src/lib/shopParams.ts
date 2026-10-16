@@ -1,12 +1,17 @@
-import type { ProductFilters, ProductSort } from '@/lib/catalog'
+import type { ProductListFilters, ProductSort } from '@/lib/api/queryBuilders'
 import type { ProductAttributeKey } from '@/types'
 
-const SORT_VALUES: ProductSort[] = ['featured', 'price-asc', 'price-desc', 'newest']
+const SORT_VALUES: ProductSort[] = [
+  'featured',
+  'price-asc',
+  'price-desc',
+  'newest',
+]
 const ATTR_KEYS: ProductAttributeKey[] = ['size', 'scent', 'color']
 
 export const SHOP_PAGE_SIZE = 12
 
-export type ShopSearchParams = ProductFilters & {
+export type ShopSearchParams = ProductListFilters & {
   page: number
 }
 

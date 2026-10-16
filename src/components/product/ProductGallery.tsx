@@ -1,6 +1,7 @@
 import useEmblaCarousel from 'embla-carousel-react'
 import { useCallback, useEffect, useState } from 'react'
 
+import { SoftImage } from '@/components/ui/soft-image'
 import {
   Dialog,
   DialogContent,
@@ -74,15 +75,17 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
   return (
     <div className="space-y-3">
       <div className="relative">
-        <div className="overflow-hidden rounded-(--radius-card) md:hidden" ref={emblaRef}>
+        <div
+          className="overflow-hidden rounded-(--radius-card) border border-border md:hidden"
+          ref={emblaRef}
+        >
           <div className="flex touch-pan-y">
             {sorted.map((image, index) => (
               <div key={image.id} className="min-w-0 flex-[0_0_100%]">
                 <div className="aspect-gallery bg-background">
-                  <img
+                  <SoftImage
                     src={image.url}
                     alt={image.alt || `${productName} image ${index + 1}`}
-                    className="size-full object-cover"
                     decoding="async"
                   />
                 </div>
@@ -93,19 +96,19 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
 
         <button
           type="button"
-          className="group relative hidden w-full overflow-hidden rounded-(--radius-card) bg-background md:block"
+          className="group relative hidden w-full overflow-hidden rounded-(--radius-card) border border-border bg-background md:block"
           onClick={() => setLightboxOpen(true)}
           aria-label={`Zoom ${productName} image`}
         >
           <div className="aspect-gallery">
-            <img
+            <SoftImage
               src={active.url}
               alt={active.alt || productName}
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              className="transition-transform duration-500 group-hover:scale-[1.03]"
               decoding="async"
             />
           </div>
-          <span className="absolute bottom-3 right-3 rounded-(--radius-sm) bg-surface/90 px-2 py-1 text-xs text-muted backdrop-blur-sm">
+          <span className="absolute bottom-3 right-3 rounded-(--radius-sm) border border-border bg-surface/95 px-2.5 py-1 text-xs text-muted backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">
             Click to zoom
           </span>
         </button>
@@ -129,13 +132,15 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
                   scrollTo(index)
                 }}
                 className={cn(
-                  'relative shrink-0 overflow-hidden rounded-(--radius-sm) border-2 transition-colors',
-                  index === selectedIndex ? 'border-accent' : 'border-transparent',
+                  'relative shrink-0 overflow-hidden rounded-(--radius-sm) border-2 transition-all duration-200',
+                  index === selectedIndex
+                    ? 'border-accent scale-[1.02]'
+                    : 'border-transparent opacity-80 hover:opacity-100',
                 )}
                 aria-label={`Show image ${index + 1}`}
                 aria-current={index === selectedIndex}
               >
-                <img
+                <SoftImage
                   src={image.url}
                   alt=""
                   className="aspect-gallery w-16 object-cover sm:w-20"
@@ -153,10 +158,11 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
         <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
           <DialogContent className="max-w-4xl border-none bg-transparent p-0 shadow-none">
             <DialogTitle className="sr-only">{productName} — enlarged view</DialogTitle>
-            <img
+            <SoftImage
               src={active.url}
               alt={active.alt || productName}
               className="max-h-[85vh] w-full rounded-(--radius-card) object-contain"
+              wrapperClassName="!h-auto max-h-[85vh]"
             />
           </DialogContent>
         </Dialog>

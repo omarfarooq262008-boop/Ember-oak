@@ -1,6 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
+import {
+  CatalogError,
+  ProductGridSkeleton,
+} from '@/components/CatalogState'
 import { ProductCard } from '@/components/product/ProductCard'
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
@@ -8,22 +12,19 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { store } from '@/config/store'
 import {
-  getCatalogAttributeOptions,
-  getCatalogPriceBounds,
-} from '@/lib/catalogAttributes'
-import {
-  getCategories,
-  getCategoryBySlug,
-  getProducts,
-  type ProductSort,
-} from '@/lib/catalog'
+  useAttributeOptions,
+  useCategories,
+  usePriceBounds,
+  useProductList,
+} from '@/hooks/useCatalog'
+import type { ProductSort } from '@/lib/api/queryBuilders'
+import { formatPKR } from '@/lib/format'
 import {
   parseShopSearchParams,
   SHOP_PAGE_SIZE,
   shopParamsToSearchParams,
   type ShopSearchParams,
 } from '@/lib/shopParams'
-import { formatPKR } from '@/lib/format'
 import type { ProductAttributeKey } from '@/types'
 
 const SORT_OPTIONS: { value: ProductSort; label: string }[] = [
@@ -77,71 +78,37 @@ function useShopState() {
 
   const clearAll = () => navigate('/shop', { replace: true })
 
-  return { parsed, update, clearAll, setSearchParams }
+  return { parsed, update, clearAll }
 }
 
 export function ShopPage() {
-  const categories = getCategories()
-  const attrOptions = useMemo(() => getCatalogAttributeOptions(), [])
-  const priceBounds = useMemo(() => getCatalogPriceBounds(), [])
   const { parsed, update, clearAll } = useShopState()
+  const categoriesQuery = useCategories()
+  const attrQuery = useAttributeOptions()
+  const boundsQuery = usePriceBounds()
 
-  const total = useMemo(
-    () =>
-      getProducts({
-        categorySlug: parsed.categorySlug,
-        collectionSlug: parsed.collectionSlug,
-        minPrice: parsed.minPrice,
-        maxPrice: parsed.maxPrice,
-        inStock: parsed.inStock,
-        attributes: parsed.attributes,
-        sort: parsed.sort,
-        page: 1,
-        pageSize: SHOP_PAGE_SIZE,
-      }).total,
-    [
-      parsed.categorySlug,
-      parsed.collectionSlug,
-      parsed.minPrice,
-      parsed.maxPrice,
-      parsed.inStock,
-      parsed.attributes,
-      parsed.sort,
-    ],
-  )
+  const listQuery = useProductList({
+    categorySlug: parsed.categorySlug,
+    collectionSlug: parsed.collectionSlug,
+    minPrice: parsed.minPrice,
+    maxPrice: parsed.maxPrice,
+    inStock: parsed.inStock,
+    attributes: parsed.attributes,
+    sort: parsed.sort,
+    pageSize: SHOP_PAGE_SIZE,
+    visiblePages: parsed.page,
+  })
 
-  const products = useMemo(() => {
-    const all: ReturnType<typeof getProducts>['items'] = []
-    for (let p = 1; p <= parsed.page; p++) {
-      const { items } = getProducts({
-        categorySlug: parsed.categorySlug,
-        collectionSlug: parsed.collectionSlug,
-        minPrice: parsed.minPrice,
-        maxPrice: parsed.maxPrice,
-        inStock: parsed.inStock,
-        attributes: parsed.attributes,
-        sort: parsed.sort,
-        page: p,
-        pageSize: SHOP_PAGE_SIZE,
-      })
-      all.push(...items)
-    }
-    return all
-  }, [
-    parsed.page,
-    parsed.categorySlug,
-    parsed.collectionSlug,
-    parsed.minPrice,
-    parsed.maxPrice,
-    parsed.inStock,
-    parsed.attributes,
-    parsed.sort,
-  ])
+  const categories = categoriesQuery.data ?? []
+  const attrOptions = attrQuery.data ?? { size: [], scent: [], color: [] }
+  const priceBounds = boundsQuery.data ?? { min: 0, max: 0 }
+  const products = listQuery.data?.items ?? []
+  const total = listQuery.data?.total ?? 0
 
   const chips = useMemo(() => {
     const list: { key: string; label: string; clear: () => void }[] = []
     if (parsed.categorySlug) {
-      const cat = getCategoryBySlug(parsed.categorySlug)
+      const cat = categories.find((c) => c.slug === parsed.categorySlug)
       list.push({
         key: 'category',
         label: cat?.name ?? parsed.categorySlug,
@@ -173,17 +140,18 @@ export function ShopPage() {
             const next = { ...parsed.attributes }
             delete next[k]
             update({
-              attributes:
-                Object.keys(next).length > 0 ? next : undefined,
+              attributes: Object.keys(next).length > 0 ? next : undefined,
             })
           },
         })
       }
     }
     return list
-  }, [parsed, priceBounds, update])
+  }, [parsed, priceBounds, categories, update])
 
   const hasMore = products.length < total
+  const loading = listQuery.isLoading || categoriesQuery.isLoading
+  const error = listQuery.isError
 
   return (
     <>
@@ -202,9 +170,7 @@ export function ShopPage() {
                   className="w-full rounded-(--radius-sm) border border-border bg-surface px-3 py-2.5 text-sm"
                   value={parsed.categorySlug ?? ''}
                   onChange={(e) =>
-                    update({
-                      categorySlug: e.target.value || undefined,
-                    })
+                    update({ categorySlug: e.target.value || undefined })
                   }
                 >
                   <option value="">All categories</option>
@@ -264,33 +230,32 @@ export function ShopPage() {
                 </Label>
               </div>
 
-              {(Object.keys(attrOptions) as ProductAttributeKey[]).map(
-                (key) =>
-                  attrOptions[key].length > 0 ? (
-                    <FilterField key={key} label={ATTR_LABELS[key]}>
-                      <select
-                        className="w-full rounded-(--radius-sm) border border-border bg-surface px-3 py-2.5 text-sm"
-                        value={parsed.attributes?.[key] ?? ''}
-                        onChange={(e) => {
-                          const v = e.target.value
-                          const next = { ...parsed.attributes }
-                          if (v) next[key] = v
-                          else delete next[key]
-                          update({
-                            attributes:
-                              Object.keys(next).length > 0 ? next : undefined,
-                          })
-                        }}
-                      >
-                        <option value="">Any</option>
-                        {attrOptions[key].map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    </FilterField>
-                  ) : null,
+              {(Object.keys(attrOptions) as ProductAttributeKey[]).map((key) =>
+                (attrOptions[key] ?? []).length > 0 ? (
+                  <FilterField key={key} label={ATTR_LABELS[key]}>
+                    <select
+                      className="w-full rounded-(--radius-sm) border border-border bg-surface px-3 py-2.5 text-sm"
+                      value={parsed.attributes?.[key] ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        const next = { ...parsed.attributes }
+                        if (v) next[key] = v
+                        else delete next[key]
+                        update({
+                          attributes:
+                            Object.keys(next).length > 0 ? next : undefined,
+                        })
+                      }}
+                    >
+                      <option value="">Any</option>
+                      {(attrOptions[key] ?? []).map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  </FilterField>
+                ) : null,
               )}
 
               {chips.length > 0 ? (
@@ -309,9 +274,11 @@ export function ShopPage() {
             <div>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted">
-                  {total === 0
-                    ? 'No products'
-                    : `${total} product${total === 1 ? '' : 's'}`}
+                  {loading
+                    ? 'Loading…'
+                    : total === 0
+                      ? 'No products'
+                      : `${total} product${total === 1 ? '' : 's'}`}
                 </p>
                 <FilterField label="Sort" className="sm:w-52">
                   <select
@@ -348,11 +315,17 @@ export function ShopPage() {
                 </ul>
               ) : null}
 
-              {total === 0 ? (
+              {loading ? (
+                <div className="mt-8">
+                  <ProductGridSkeleton count={12} />
+                </div>
+              ) : error ? (
+                <div className="mt-8">
+                  <CatalogError onRetry={() => void listQuery.refetch()} />
+                </div>
+              ) : total === 0 ? (
                 <div className="mt-12 rounded-(--radius-card) border border-border bg-surface px-6 py-16 text-center">
-                  <p className="text-muted">
-                    No products match your filters.
-                  </p>
+                  <p className="text-muted">No products match your filters.</p>
                   <Button
                     type="button"
                     variant="secondary"

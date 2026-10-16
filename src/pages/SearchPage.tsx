@@ -1,18 +1,20 @@
-import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
+import {
+  CatalogError,
+  ProductGridSkeleton,
+} from '@/components/CatalogState'
 import { ProductCard } from '@/components/product/ProductCard'
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
-import { searchProducts } from '@/lib/catalog'
+import { useProductSearch } from '@/hooks/useCatalog'
 
 export function SearchPage() {
   const [searchParams] = useSearchParams()
   const query = searchParams.get('q')?.trim() ?? ''
-
-  const results = useMemo(
-    () => (query ? searchProducts(query) : []),
-    [query],
+  const { data: results = [], isLoading, isError, refetch } = useProductSearch(
+    query,
+    48,
   )
 
   return (
@@ -32,8 +34,12 @@ export function SearchPage() {
             <p className="mt-3 text-muted">
               Results for{' '}
               <span className="font-medium text-text">“{query}”</span>
-              {' · '}
-              {results.length} match{results.length === 1 ? '' : 'es'}
+              {!isLoading ? (
+                <>
+                  {' · '}
+                  {results.length} match{results.length === 1 ? '' : 'es'}
+                </>
+              ) : null}
             </p>
           ) : (
             <p className="mt-3 text-muted">
@@ -41,18 +47,26 @@ export function SearchPage() {
             </p>
           )}
 
-          {!query ? null : results.length === 0 ? (
+          {!query ? null : isLoading ? (
+            <div className="mt-10">
+              <ProductGridSkeleton count={8} />
+            </div>
+          ) : isError ? (
+            <div className="mt-10">
+              <CatalogError onRetry={() => void refetch()} />
+            </div>
+          ) : results.length === 0 ? (
             <div className="mt-12 rounded-(--radius-card) border border-border bg-surface px-6 py-16 text-center">
               <p className="text-muted">
-                No products found for “{query}”. Try a different spelling or
-                browse the shop.
+                No products matched “{query}”. Try another spelling or browse the
+                shop.
               </p>
-              <Button asChild className="mt-6" variant="secondary">
+              <Button asChild variant="secondary" className="mt-6">
                 <Link to="/shop">Browse shop</Link>
               </Button>
             </div>
           ) : (
-            <ul className="mt-10 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 xl:grid-cols-4">
+            <ul className="mt-10 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
               {results.map((product) => (
                 <li key={product.id}>
                   <ProductCard product={product} />

@@ -1,32 +1,37 @@
-import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import {
+  CatalogError,
+  ProductGridSkeleton,
+} from '@/components/CatalogState'
 import { ProductCard } from '@/components/product/ProductCard'
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
-import { getCollectionBySlug, getProducts } from '@/lib/catalog'
+import { useCollectionBySlug, useProductList } from '@/hooks/useCatalog'
 
 export function CollectionPage() {
-  const { slug } = useParams<{ slug: string }>()
-  const collection = slug ? getCollectionBySlug(slug) : undefined
+  const { slug = '' } = useParams<{ slug: string }>()
+  const collectionQuery = useCollectionBySlug(slug)
+  const listQuery = useProductList({
+    collectionSlug: slug,
+    sort: 'featured',
+    pageSize: 48,
+    visiblePages: 1,
+  })
 
-  const { items: products, total } = useMemo(
-    () =>
-      slug
-        ? getProducts({ collectionSlug: slug, pageSize: 48 })
-        : { items: [], total: 0 },
-    [slug],
-  )
+  const collection = collectionQuery.data
+  const products = listQuery.data?.items ?? []
+  const loading = collectionQuery.isLoading || listQuery.isLoading
+  const error = collectionQuery.isError || listQuery.isError
 
-  if (!collection) {
+  if (!loading && !error && !collection) {
     return (
-      <div className="section-pad bg-background">
-        <div className="container-eo text-center">
-          <h1 className="text-2xl">Collection not found</h1>
-          <Button asChild className="mt-6" variant="secondary">
-            <Link to="/collections">All collections</Link>
-          </Button>
-        </div>
+      <div className="section-pad container-eo max-w-lg text-center">
+        <Seo title="Collection not found" />
+        <h1 className="text-3xl">Collection not found</h1>
+        <Button asChild className="mt-8">
+          <Link to="/collections">Browse collections</Link>
+        </Button>
       </div>
     )
   }
@@ -34,53 +39,45 @@ export function CollectionPage() {
   return (
     <>
       <Seo
-        title={collection.name}
-        description={collection.description ?? undefined}
-        image={collection.image_url ?? undefined}
+        title={collection?.name ?? 'Collection'}
+        description={collection?.description ?? undefined}
       />
-      <div className="bg-background">
-        {collection.image_url ? (
-          <div className="aspect-banner w-full overflow-hidden">
-            <img
-              src={collection.image_url}
-              alt=""
-              className="size-full object-cover"
+      <div className="section-pad bg-background">
+        <div className="container-eo">
+          {loading ? (
+            <ProductGridSkeleton count={8} />
+          ) : error ? (
+            <CatalogError
+              onRetry={() => {
+                void collectionQuery.refetch()
+                void listQuery.refetch()
+              }}
             />
-          </div>
-        ) : null}
-        <div className="section-pad">
-          <div className="container-eo">
-            <nav className="text-sm text-muted">
-              <Link to="/collections" className="hover:text-accent">
-                Collections
-              </Link>
-              <span aria-hidden> / </span>
-              <span className="text-text">{collection.name}</span>
-            </nav>
-            <header className="mt-4 max-w-2xl">
-              <h1 className="text-3xl md:text-4xl">{collection.name}</h1>
-              {collection.description ? (
-                <p className="mt-3 text-muted">{collection.description}</p>
-              ) : null}
-              <p className="mt-4 text-sm text-muted">
-                {total} product{total === 1 ? '' : 's'}
-              </p>
-            </header>
-
-            {total === 0 ? (
-              <p className="mt-12 text-muted">
-                No products in this collection yet.
-              </p>
-            ) : (
-              <ul className="mt-10 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 xl:grid-cols-4">
+          ) : (
+            <>
+              <header className="max-w-2xl">
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">
+                  Collection
+                </p>
+                <h1 className="mt-2 text-3xl md:text-4xl">{collection?.name}</h1>
+                {collection?.description ? (
+                  <p className="mt-3 text-muted">{collection.description}</p>
+                ) : null}
+              </header>
+              <ul className="mt-10 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
                 {products.map((product) => (
                   <li key={product.id}>
                     <ProductCard product={product} />
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
+              {products.length === 0 ? (
+                <p className="mt-10 text-muted">
+                  No products in this collection yet.
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </>

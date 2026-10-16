@@ -2,8 +2,9 @@ import { Loader2Icon, MinusIcon, PlusIcon, StarIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { ProductGallery } from '@/components/product/ProductGallery'
+import { CatalogError } from '@/components/CatalogState'
 import { ProductCard } from '@/components/product/ProductCard'
+import { ProductGallery } from '@/components/product/ProductGallery'
 import {
   VariantSelector,
   findVariantBySelection,
@@ -22,35 +23,42 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { store } from '@/config/store'
 import { useCart } from '@/contexts/CartContext'
-import { getProductBySlug, getRelatedProducts } from '@/lib/catalog'
+import {
+  useApprovedReviews,
+  useProductBySlug,
+  useRelatedProducts,
+} from '@/hooks/useCatalog'
+import { getStockState } from '@/lib/api/stock'
 import { formatPKR, savingsAmount } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { ProductAttributeKey, ProductVariant } from '@/types'
+import type { Product, ProductAttributeKey, ProductVariant, Review } from '@/types'
 
 const RETURNS_SUMMARY =
   'Unused items in original packaging may be returned within 14 days of delivery. Contact us to start a return — see our Returns page for details.'
 
 export function ProductPage() {
   const { slug = '' } = useParams<{ slug: string }>()
-  const [loading, setLoading] = useState(true)
+  const productQuery = useProductBySlug(slug)
+  const product = productQuery.data ?? null
+  const reviewsQuery = useApprovedReviews(product?.id)
+  const relatedQuery = useRelatedProducts(product, 4)
+
   const { addItem, openCart } = useCart()
   const [adding, setAdding] = useState(false)
   const [quantity, setQuantity] = useState(1)
 
-  const product = useMemo(() => getProductBySlug(slug), [slug])
   const variants = useMemo(
     () => (product?.variants ?? []).filter((v) => v.is_active),
     [product],
   )
-  const attributeKeys = useMemo(() => getVariantAttributeKeys(variants), [variants])
+  const attributeKeys = useMemo(
+    () => getVariantAttributeKeys(variants),
+    [variants],
+  )
 
-  const [selection, setSelection] = useState<Partial<Record<ProductAttributeKey, string>>>({})
-
-  useEffect(() => {
-    setLoading(true)
-    const t = window.setTimeout(() => setLoading(false), 280)
-    return () => window.clearTimeout(t)
-  }, [slug])
+  const [selection, setSelection] = useState<
+    Partial<Record<ProductAttributeKey, string>>
+  >({})
 
   useEffect(() => {
     if (variants.length === 0) {
@@ -66,19 +74,23 @@ export function ProductPage() {
     [variants, selection, attributeKeys],
   )
 
-  const related = useMemo(
-    () => (product ? getRelatedProducts(product, 4) : []),
-    [product],
-  )
+  const stockState = getStockState(selectedVariant)
+  const related = relatedQuery.data ?? []
+  const reviews = reviewsQuery.data ?? []
+  const reviewCount = reviews.length
+  const avgRating =
+    reviewCount > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+      : product?.avg_rating ?? null
 
-  const primaryImage = product?.images?.find((i) => i.is_primary) ?? product?.images?.[0]
+  const primaryImage =
+    product?.images?.find((i) => i.is_primary) ?? product?.images?.[0]
 
   const handleSelect = useCallback(
     (key: ProductAttributeKey, value: string) => {
       setSelection((prev) => {
         const next = { ...prev, [key]: value }
-        const keysAfter = attributeKeys
-        if (!findVariantBySelection(variants, next, keysAfter)) {
+        if (!findVariantBySelection(variants, next, attributeKeys)) {
           for (const otherKey of attributeKeys) {
             if (otherKey === key) continue
             delete next[otherKey]
@@ -114,8 +126,17 @@ export function ProductPage() {
     openCart()
   }
 
-  if (loading) {
+  if (productQuery.isLoading) {
     return <ProductPageSkeleton />
+  }
+
+  if (productQuery.isError) {
+    return (
+      <div className="section-pad container-eo max-w-lg">
+        <Seo title="Couldn’t load product" />
+        <CatalogError onRetry={() => void productQuery.refetch()} />
+      </div>
+    )
   }
 
   if (!product) {
@@ -123,7 +144,9 @@ export function ProductPage() {
       <div className="section-pad container-eo mx-auto max-w-lg text-center">
         <Seo title="Product not found" />
         <h1 className="text-2xl">Product not found</h1>
-        <p className="mt-2 text-muted">This item may have been removed or the link is incorrect.</p>
+        <p className="mt-2 text-muted">
+          This item may have been removed or the link is incorrect.
+        </p>
         <Button asChild className="mt-6">
           <Link to="/shop">Back to shop</Link>
         </Button>
@@ -131,8 +154,6 @@ export function ProductPage() {
     )
   }
 
-  const reviewCount = product.review_count ?? 0
-  const avgRating = product.avg_rating
   const price = selectedVariant?.price ?? variants[0]?.price ?? 0
   const compareAt = selectedVariant?.compare_at_price ?? null
   const saved = savingsAmount(price, compareAt)
@@ -165,7 +186,10 @@ export function ProductPage() {
               <span aria-hidden className="mx-2">
                 /
               </span>
-              <Link to={`/shop/${product.category.slug}`} className="hover:text-accent">
+              <Link
+                to={`/shop/${product.category.slug}`}
+                className="hover:text-accent"
+              >
                 {product.category.name}
               </Link>
             </>
@@ -173,7 +197,10 @@ export function ProductPage() {
         </nav>
 
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
-          <ProductGallery images={product.images ?? []} productName={product.name} />
+          <ProductGallery
+            images={product.images ?? []}
+            productName={product.name}
+          />
 
           <div className="flex flex-col gap-6">
             <div>
@@ -182,7 +209,9 @@ export function ProductPage() {
             </div>
 
             <div className="flex flex-wrap items-baseline gap-3">
-              <span className="text-2xl font-medium tabular-nums">{formatPKR(price)}</span>
+              <span className="text-2xl font-medium tabular-nums">
+                {formatPKR(price)}
+              </span>
               {compareAt != null && compareAt > price ? (
                 <>
                   <span className="text-lg text-muted line-through tabular-nums">
@@ -197,7 +226,21 @@ export function ProductPage() {
               ) : null}
             </div>
 
-            <p className="text-muted leading-relaxed">{product.short_description}</p>
+            <p
+              className={cn(
+                'text-sm font-medium',
+                stockState.kind === 'out_of_stock' && 'text-error',
+                stockState.kind === 'low_stock' && 'text-accent',
+                stockState.kind === 'in_stock' && 'text-success',
+              )}
+              role="status"
+            >
+              {stockState.label}
+            </p>
+
+            <p className="leading-relaxed text-muted">
+              {product.short_description}
+            </p>
 
             {variants.length > 0 ? (
               <VariantSelector
@@ -290,7 +333,8 @@ export function ProductPage() {
                 {store.delivery.summary}
               </p>
               <p>
-                <span className="font-medium text-text">Returns:</span> {RETURNS_SUMMARY}
+                <span className="font-medium text-text">Returns:</span>{' '}
+                {RETURNS_SUMMARY}
               </p>
             </div>
 
@@ -298,7 +342,20 @@ export function ProductPage() {
           </div>
         </div>
 
-        {related.length > 0 ? (
+        <ReviewsBlock
+          reviews={reviews}
+          isLoading={reviewsQuery.isLoading}
+          isError={reviewsQuery.isError}
+          onRetry={() => void reviewsQuery.refetch()}
+        />
+
+        {relatedQuery.isLoading ? (
+          <div className="mt-16 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-product rounded-(--radius-card)" />
+            ))}
+          </div>
+        ) : related.length > 0 ? (
           <section className="mt-16" aria-labelledby="related-heading">
             <h2 id="related-heading" className="text-2xl">
               You may also like
@@ -338,6 +395,76 @@ export function ProductPage() {
   )
 }
 
+function ReviewsBlock({
+  reviews,
+  isLoading,
+  isError,
+  onRetry,
+}: {
+  reviews: Review[]
+  isLoading: boolean
+  isError: boolean
+  onRetry: () => void
+}) {
+  return (
+    <section className="mt-16" aria-labelledby="product-reviews-heading">
+      <h2 id="product-reviews-heading" className="text-2xl">
+        Reviews
+      </h2>
+      {isLoading ? (
+        <div className="mt-6 space-y-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : isError ? (
+        <div className="mt-6">
+          <CatalogError onRetry={onRetry} />
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="mt-6 rounded-(--radius-card) border border-dashed border-border bg-surface px-6 py-12 text-center">
+          <p className="text-sm text-muted">
+            No reviews yet. Verified reviews from delivered orders will appear
+            here once approved.
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-6 space-y-4">
+          {reviews.map((review) => (
+            <li
+              key={review.id}
+              className="rounded-(--radius-card) border border-border bg-surface p-5"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex text-accent" aria-hidden>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <StarIcon
+                      key={i}
+                      className={cn(
+                        'size-3.5',
+                        i < review.rating ? 'fill-current' : 'opacity-30',
+                      )}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm font-medium">{review.customer_name}</span>
+                {review.is_verified ? (
+                  <span className="text-xs text-success">Verified purchase</span>
+                ) : null}
+              </div>
+              {review.title ? (
+                <p className="mt-2 text-sm font-medium">{review.title}</p>
+              ) : null}
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                {review.body}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 function RatingArea({
   reviewCount,
   avgRating,
@@ -355,24 +482,31 @@ function RatingArea({
 
   const rating = avgRating ?? 0
   return (
-    <div className="mt-2 flex items-center gap-2" aria-label={`Rated ${rating} out of 5`}>
+    <div
+      className="mt-2 flex items-center gap-2"
+      aria-label={`Rated ${rating} out of 5`}
+    >
       <div className="flex text-accent">
         {Array.from({ length: 5 }).map((_, i) => (
           <StarIcon
             key={i}
-            className={cn('size-4', i < Math.round(rating) ? 'fill-current' : 'opacity-30')}
+            className={cn(
+              'size-4',
+              i < Math.round(rating) ? 'fill-current' : 'opacity-30',
+            )}
             aria-hidden
           />
         ))}
       </div>
       <span className="text-sm text-muted">
-        {rating.toFixed(1)} · {reviewCount} review{reviewCount === 1 ? '' : 's'}
+        {rating.toFixed(1)} · {reviewCount} review
+        {reviewCount === 1 ? '' : 's'}
       </span>
     </div>
   )
 }
 
-function ProductAccordion({ product }: { product: NonNullable<ReturnType<typeof getProductBySlug>> }) {
+function ProductAccordion({ product }: { product: Product }) {
   return (
     <Accordion type="multiple" defaultValue={['details']} className="w-full">
       <AccordionItem value="details">
@@ -404,8 +538,9 @@ function ProductAccordion({ product }: { product: NonNullable<ReturnType<typeof 
         <AccordionContent>
           <p>{store.delivery.summary}</p>
           <p className="mt-2">
-            Estimated {store.delivery.workingDaysMin}–{store.delivery.workingDaysMax} working days
-            nationwide after dispatch.
+            Estimated {store.delivery.workingDaysMin}–
+            {store.delivery.workingDaysMax} working days nationwide after
+            dispatch.
           </p>
         </AccordionContent>
       </AccordionItem>
@@ -435,7 +570,7 @@ function ProductPageSkeleton() {
 }
 
 function buildProductJsonLd(
-  product: NonNullable<ReturnType<typeof getProductBySlug>>,
+  product: Product,
   variant: ProductVariant | null,
   imageUrl?: string,
 ) {
@@ -452,7 +587,7 @@ function buildProductJsonLd(
       '@type': 'Offer',
       url: `${store.seo.siteUrl}/product/${product.slug}`,
       priceCurrency: store.currency.code,
-      price: price,
+      price,
       availability: inStock
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',

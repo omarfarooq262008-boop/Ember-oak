@@ -1,5 +1,5 @@
 import { SearchIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import {
@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { getCategories, searchProducts } from '@/lib/catalog'
+import { useSearchSuggestions } from '@/hooks/useCatalog'
 import { cn } from '@/lib/utils'
 
 type SearchDialogProps = {
@@ -19,27 +19,24 @@ type SearchDialogProps = {
 
 export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [query, setQuery] = useState('')
+  const [debounced, setDebounced] = useState('')
   const navigate = useNavigate()
 
-  const trimmed = query.trim()
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced(query.trim()), 280)
+    return () => window.clearTimeout(t)
+  }, [query])
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) setQuery('')
+    if (!next) {
+      setQuery('')
+      setDebounced('')
+    }
     onOpenChange(next)
   }
-  const suggestions = useMemo(() => {
-    if (trimmed.length < 2) {
-      return { products: [], categories: [] as ReturnType<typeof getCategories> }
-    }
-    const q = trimmed.toLowerCase()
-    const categories = getCategories().filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.description?.toLowerCase().includes(q) ?? false),
-    )
-    const products = searchProducts(trimmed).slice(0, 6)
-    return { products, categories: categories.slice(0, 4) }
-  }, [trimmed])
+
+  const suggestions = useSearchSuggestions(debounced.length >= 2 ? debounced : '')
+  const trimmed = query.trim()
 
   const goToSearch = () => {
     if (!trimmed) return
@@ -83,9 +80,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             </div>
           </form>
 
-          {trimmed.length >= 2 ? (
+          {debounced.length >= 2 ? (
             <div className="mt-4 max-h-[min(50vh,20rem)] overflow-y-auto">
-              {!hasResults ? (
+              {suggestions.isLoading ? (
+                <p className="py-6 text-center text-sm text-muted">Searching…</p>
+              ) : !hasResults ? (
                 <p className="py-6 text-center text-sm text-muted">
                   No matches — try another term or{' '}
                   <button
@@ -108,7 +107,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                         {suggestions.categories.map((cat) => (
                           <li key={cat.id}>
                             <Link
-                              to={`/shop?category=${cat.slug}`}
+                              to={`/shop/${cat.slug}`}
                               className="block rounded-(--radius-sm) px-2 py-2 text-sm hover:bg-background"
                               onClick={() => onOpenChange(false)}
                             >

@@ -1,7 +1,8 @@
 /**
- * Demo catalog — mirrors seed SQL. Used when Supabase is unavailable
- * and as the source of truth for seed scripts.
- * No fake reviews: review arrays stay empty until moderated DB reviews exist.
+ * Local demo catalog — DEV FALLBACK ONLY.
+ * Used when `VITE_SUPABASE_URL` is missing in development
+ * (`src/lib/api/source.ts`). Production builds never use this silently.
+ * Also mirrors seed SQL for offline demos. No fake reviews.
  */
 import type {
   Category,
@@ -21,7 +22,7 @@ export const categories: Category[] = [
     slug: 'candles',
     name: 'Candles',
     description: 'Soy-blend candles poured in small batches for slow evenings.',
-    image_url: img('photo-1603006905004-abe479046317'),
+    image_url: img('photo-1600618528240-fb9fc964b853'),
     sort_order: 1,
     is_active: true,
   },
@@ -69,7 +70,7 @@ export const collections: Collection[] = [
     slug: 'amber-hours',
     name: 'Amber Hours',
     description: 'Warm resinous notes and honeyed light for late afternoons.',
-    image_url: img('photo-1603006905004-abe479046317', 1200, 675),
+    image_url: img('photo-1600618528240-fb9fc964b853', 1200, 675),
     featured: true,
     sort_order: 1,
     is_active: true,
@@ -137,8 +138,8 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1603006905004-abe479046317'), alt: 'Sandalwood Ember candle in warm window light' },
-      { url: img('photo-1602874801006-e6c27c7430df'), alt: 'Sandalwood Ember candle lit detail' },
+      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Sandalwood Ember candle in warm window light' },
+      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Sandalwood Ember candle lit detail' },
     ],
     variants: [
       { sku: 'CND-SE-220', options: { size: '220 g', scent: 'Sandalwood Ember' }, price: 4500, stock: 28 },
@@ -161,7 +162,7 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-linen'],
     images: [
-      { url: img('photo-1602874801006-e6c27c7430df'), alt: 'Bergamot and Cedar candle on linen' },
+      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Bergamot and Cedar candle on linen' },
       { url: img('photo-1594035910387-fea47794261f'), alt: 'Bergamot candle top view' },
     ],
     variants: [
@@ -186,7 +187,7 @@ const seedProducts: SeedProduct[] = [
     collection_ids: ['col-clay'],
     images: [
       { url: img('photo-1572726729207-a78d6feb18d7'), alt: 'Fig Leaf candle beside ceramics' },
-      { url: img('photo-1603006905004-abe479046317'), alt: 'Fig Leaf candle flame glow' },
+      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Fig Leaf candle flame glow' },
     ],
     variants: [
       { sku: 'CND-FL-220', options: { size: '220 g', scent: 'Fig Leaf' }, price: 4400, stock: 22 },
@@ -210,7 +211,7 @@ const seedProducts: SeedProduct[] = [
     collection_ids: ['col-amber'],
     images: [
       { url: img('photo-1594035910387-fea47794261f'), alt: 'Oud and Tobacco candle in low light' },
-      { url: img('photo-1602874801006-e6c27c7430df'), alt: 'Oud candle packaging detail' },
+      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Oud candle packaging detail' },
     ],
     variants: [
       { sku: 'CND-OT-220', options: { size: '220 g', scent: 'Oud Tobacco' }, price: 4800, stock: 18 },
@@ -257,7 +258,7 @@ const seedProducts: SeedProduct[] = [
     collection_ids: ['col-amber'],
     images: [
       { url: img('photo-1608571423902-eed4a5ad8108'), alt: 'Amber reed diffuser on wooden shelf' },
-      { url: img('photo-1603006905004-abe479046317'), alt: 'Amber diffuser close-up' },
+      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Amber diffuser close-up' },
     ],
     variants: [
       { sku: 'DIF-AM-200', options: { size: '200 ml', scent: 'Amber' }, price: 5500, stock: 25 },
@@ -353,7 +354,7 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-clay'],
     images: [
-      { url: img('photo-1602874801006-e6c27c7430df'), alt: 'Pair of ceramic taper holders' },
+      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Pair of ceramic taper holders' },
       { url: img('photo-1610701596007-11502861dcfa'), alt: 'Taper holders styled on table' },
     ],
     variants: [
@@ -497,7 +498,7 @@ const seedProducts: SeedProduct[] = [
     collection_ids: ['col-amber'],
     images: [
       { url: img('photo-1549465220-1a8b9238cd48'), alt: 'Evening Ritual gift set box' },
-      { url: img('photo-1603006905004-abe479046317'), alt: 'Set contents arranged' },
+      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Set contents arranged' },
     ],
     variants: [
       { sku: 'SET-ER-01', options: { size: 'Standard' }, price: 9800, compare_at_price: 11200, stock: 15 },
@@ -565,7 +566,7 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: true,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1602874801006-e6c27c7430df'), alt: 'Three travel candle tins' },
+      { url: img('photo-1543248939-ff40856f65d4'), alt: 'Three travel candle tins' },
       { url: img('photo-1594035910387-fea47794261f'), alt: 'Travel tin open' },
     ],
     variants: [
@@ -611,7 +612,7 @@ const seedProducts: SeedProduct[] = [
     is_bestseller: false,
     collection_ids: ['col-amber'],
     images: [
-      { url: img('photo-1603006905004-abe479046317'), alt: 'Brass lid match jar beside candle' },
+      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Brass lid match jar beside candle' },
       { url: img('photo-1594035910387-fea47794261f'), alt: 'Match jar detail' },
     ],
     variants: [
@@ -636,7 +637,7 @@ const seedProducts: SeedProduct[] = [
     collection_ids: ['col-amber'],
     images: [
       { url: img('photo-1594035910387-fea47794261f'), alt: 'Brass candle snuffer' },
-      { url: img('photo-1603006905004-abe479046317'), alt: 'Snuffer with candle' },
+      { url: img('photo-1600618528240-fb9fc964b853'), alt: 'Snuffer with candle' },
     ],
     variants: [
       { sku: 'ACC-SN-01', options: { color: 'Brass' }, price: 2200, stock: 27 },
@@ -782,7 +783,7 @@ export const discountCodes: DiscountCode[] = [
 ]
 
 export const instagramStrip = [
-  { id: 'ig-1', url: img('photo-1603006905004-abe479046317', 600, 600), alt: 'Candle still life' },
+  { id: 'ig-1', url: img('photo-1600618528240-fb9fc964b853', 600, 600), alt: 'Candle still life' },
   { id: 'ig-2', url: img('photo-1616486338812-3dadae4b4ace', 600, 600), alt: 'Linen and light' },
   { id: 'ig-3', url: img('photo-1578749556568-bc2c40e68b61', 600, 600), alt: 'Ceramic vessels' },
   { id: 'ig-4', url: img('photo-1584100936595-c0654b55a2e2', 600, 600), alt: 'Throw textures' },
@@ -791,6 +792,6 @@ export const instagramStrip = [
 ]
 
 export const heroImage = {
-  url: img('photo-1603006905004-abe479046317', 1920, 1080),
+  url: img('photo-1600618528240-fb9fc964b853', 1920, 1080),
   alt: 'Warm candlelight across a considered living room',
 }

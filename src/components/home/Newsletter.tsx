@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { store } from '@/config/store'
+import { useInViewFade } from '@/hooks/useInViewFade'
+import { cn } from '@/lib/utils'
 
 const STORAGE_KEY = 'eo-newsletter-subscribers'
 
@@ -29,6 +31,7 @@ function saveSubscriber(email: string): boolean {
 export function Newsletter() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const { ref, inView } = useInViewFade<HTMLElement>()
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -53,11 +56,20 @@ export function Newsletter() {
 
   return (
     <section
+      ref={ref}
       className="section-pad bg-surface"
       aria-labelledby="newsletter-heading"
     >
-      <div className="container-eo mx-auto max-w-xl text-center">
-        <h2 id="newsletter-heading" className="text-2xl md:text-3xl">
+      <div
+        className={cn(
+          'container-eo mx-auto max-w-xl rounded-(--radius-card) border border-border bg-background px-6 py-10 text-center md:px-10 md:py-12',
+          inView && 'fade-in-up',
+        )}
+      >
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">
+          Newsletter
+        </p>
+        <h2 id="newsletter-heading" className="mt-2 text-2xl md:text-3xl">
           Stay in the loop
         </h2>
         <p className="mt-3 text-sm text-muted md:text-base">
@@ -87,12 +99,12 @@ export function Newsletter() {
               aria-describedby={error ? 'newsletter-error' : undefined}
             />
             {error ? (
-              <p id="newsletter-error" className="mt-2 text-sm text-error">
+              <p id="newsletter-error" className="mt-2 text-sm text-error" role="alert">
                 {error}
               </p>
             ) : null}
           </div>
-          <Button type="submit" className="shrink-0">
+          <Button type="submit" className="shrink-0 sm:min-w-[8.5rem]">
             Subscribe
           </Button>
         </form>

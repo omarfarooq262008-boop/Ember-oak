@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/sheet'
 import { store } from '@/config/store'
 import { useCart } from '@/contexts/CartContext'
-import { getCategories, getCollections } from '@/lib/catalog'
+import { useCategories, useCollections } from '@/hooks/useCatalog'
 import { useScrollShrink } from '@/hooks/useScrollShrink'
 import { cn } from '@/lib/utils'
 
@@ -31,8 +31,8 @@ export function Header() {
   const [shopOpen, setShopOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const categories = getCategories()
-  const featuredCollections = getCollections({ featured: true })
+  const { data: categories = [] } = useCategories()
+  const { data: featuredCollections = [] } = useCollections(true)
   const heroCollection = featuredCollections[0]
 
   useEffect(() => {
@@ -190,7 +190,7 @@ export function Header() {
                           alt=""
                           className="absolute inset-0 size-full object-cover"
                         />
-                        <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-primary/80 to-transparent p-4 text-sm font-medium text-brand-band-text">
+                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary/80 to-transparent p-4 text-sm font-medium text-brand-band-text">
                           {heroCollection.name}
                         </span>
                       </Link>

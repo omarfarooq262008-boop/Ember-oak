@@ -102,8 +102,7 @@ export const store = {
 
   seo: {
     siteUrl: 'https://emberandoak.pk',
-    defaultOgImage:
-      'https://images.unsplash.com/photo-1603006905004-abe479046317?w=1200&h=630&fit=crop&q=80',
+    defaultOgImage: '/og-default.svg',
   },
 
   navigation: {

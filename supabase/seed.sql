@@ -13,7 +13,7 @@ cascade;
 
 -- Categories
 insert into public.categories (id, slug, name, description, image_url, sort_order) values
-  ('a1000000-0000-4000-8000-000000000001', 'candles', 'Candles', 'Soy-blend candles poured in small batches for slow evenings.', 'https://images.unsplash.com/photo-1603006905004-abe479046317?auto=format&fit=crop&w=800&h=1000&q=80', 1),
+  ('a1000000-0000-4000-8000-000000000001', 'candles', 'Candles', 'Soy-blend candles poured in small batches for slow evenings.', 'https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&w=800&h=1000&q=80', 1),
   ('a1000000-0000-4000-8000-000000000002', 'diffusers', 'Diffusers', 'Reed and ceramic diffusers that scent a room without flame.', 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=800&h=1000&q=80', 2),
   ('a1000000-0000-4000-8000-000000000003', 'ceramics', 'Ceramics', 'Hand-finished vessels, trays, and holders in warm glazes.', 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&h=1000&q=80', 3),
   ('a1000000-0000-4000-8000-000000000004', 'throws', 'Throws', 'Soft throws and textiles for layered, lived-in rooms.', 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=800&h=1000&q=80', 4),
@@ -21,7 +21,7 @@ insert into public.categories (id, slug, name, description, image_url, sort_orde
 
 -- Collections
 insert into public.collections (id, slug, name, description, image_url, featured, sort_order) values
-  ('b1000000-0000-4000-8000-000000000001', 'amber-hours', 'Amber Hours', 'Warm resinous notes and honeyed light for late afternoons.', 'https://images.unsplash.com/photo-1603006905004-abe479046317?auto=format&fit=crop&w=1200&h=675&q=80', true, 1),
+  ('b1000000-0000-4000-8000-000000000001', 'amber-hours', 'Amber Hours', 'Warm resinous notes and honeyed light for late afternoons.', 'https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&w=1200&h=675&q=80', true, 1),
   ('b1000000-0000-4000-8000-000000000002', 'clay-studio', 'Clay Studio', 'Stoneware forms with matte glazes and quiet edges.', 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=1200&h=675&q=80', true, 2),
   ('b1000000-0000-4000-8000-000000000003', 'linen-light', 'Linen & Light', 'Soft textiles and pale ceramics for airy rooms.', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&h=675&q=80', true, 3);
 
@@ -105,8 +105,8 @@ insert into public.product_variants (product_id, sku, options, price, compare_at
 insert into public.product_images (product_id, url, alt, sort_order, is_primary)
 select id,
   case slug
-    when 'sandalwood-ember-candle' then 'https://images.unsplash.com/photo-1603006905004-abe479046317?auto=format&fit=crop&w=800&h=1000&q=80'
-    when 'bergamot-cedar-candle' then 'https://images.unsplash.com/photo-1602874801006-e6c27c7430df?auto=format&fit=crop&w=800&h=1000&q=80'
+    when 'sandalwood-ember-candle' then 'https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&w=800&h=1000&q=80'
+    when 'bergamot-cedar-candle' then 'https://images.unsplash.com/photo-1543248939-ff40856f65d4?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'fig-leaf-candle' then 'https://images.unsplash.com/photo-1572726729207-a78d6feb18d7?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'oud-tobacco-candle' then 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'white-tea-candle' then 'https://images.unsplash.com/photo-1572726729207-a78d6feb18d7?auto=format&fit=crop&w=800&h=1000&q=80'
@@ -114,7 +114,7 @@ select id,
     when 'reed-diffuser-citrus-grove' then 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'ceramic-diffuser-stone' then 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'matte-bowl-large' then 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&h=1000&q=80'
-    when 'candle-holder-pair' then 'https://images.unsplash.com/photo-1602874801006-e6c27c7430df?auto=format&fit=crop&w=800&h=1000&q=80'
+    when 'candle-holder-pair' then 'https://images.unsplash.com/photo-1543248939-ff40856f65d4?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'incense-tray' then 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'vase-column' then 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'wool-throw-camel' then 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=800&h=1000&q=80'
@@ -123,9 +123,9 @@ select id,
     when 'evening-ritual-set' then 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'host-table-set' then 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'quiet-bedroom-set' then 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=800&h=1000&q=80'
-    when 'travel-tin-trio' then 'https://images.unsplash.com/photo-1602874801006-e6c27c7430df?auto=format&fit=crop&w=800&h=1000&q=80'
+    when 'travel-tin-trio' then 'https://images.unsplash.com/photo-1543248939-ff40856f65d4?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'room-spray-linen' then 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=800&h=1000&q=80'
-    when 'match-jar-brass' then 'https://images.unsplash.com/photo-1603006905004-abe479046317?auto=format&fit=crop&w=800&h=1000&q=80'
+    when 'match-jar-brass' then 'https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'snuffer-bell' then 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=800&h=1000&q=80'
     when 'wall-shelf-oak' then 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=800&h=1000&q=80'
     else 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=800&h=1000&q=80'

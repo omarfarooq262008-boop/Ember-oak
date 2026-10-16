@@ -50,10 +50,13 @@ function Seo({
       upsertMeta('twitter:description', description)
     }
 
-    if (image) {
-      upsertMeta('og:image', image, 'property')
-      upsertMeta('twitter:image', image)
-    }
+    const ogImage = image
+      ? image.startsWith('http')
+        ? image
+        : `${store.seo.siteUrl}${image.startsWith('/') ? '' : '/'}${image}`
+      : `${store.seo.siteUrl}${store.seo.defaultOgImage}`
+    upsertMeta('og:image', ogImage, 'property')
+    upsertMeta('twitter:image', ogImage)
 
     if (url) {
       upsertMeta('og:url', url, 'property')
