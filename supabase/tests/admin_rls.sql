@@ -1,5 +1,5 @@
--- Admin RLS + RPC proofs. Paste whole file into Supabase SQL Editor AFTER migration 20260316000006.
--- Runs in one transaction and ROLLs BACK — nothing persists.
+-- Admin RLS + RPC proofs. Paste whole file into Supabase SQL Editor AFTER migrations
+-- 20260316000006 and 20260316000007. Runs in one transaction and ROLLs BACK — nothing persists.
 
 begin;
 
@@ -62,6 +62,10 @@ declare
   v_var uuid := '11111111-1111-4111-8111-111111111111';
   v_order_buyer uuid := '22222222-2222-4222-8222-222222222222';
   v_order_other uuid := '44444444-4444-4444-8444-444444444444';
+  v_review_other uuid := '55555555-5555-4555-8555-555555555555';
+  v_review_buyer uuid := '66666666-6666-4666-8666-666666666666';
+  v_review_approve uuid := '77777777-7777-4777-8777-777777777777';
+  v_review_reject uuid := '88888888-8888-4888-8888-888888888888';
 begin
   insert into auth.users (
     instance_id, id, aud, role, email, encrypted_password,
@@ -142,6 +146,29 @@ begin
   values
     (v_order_buyer, 'cod', 1250, 'pending'),
     (v_order_other, 'cod', 1250, 'pending');
+
+  delete from public.reviews
+  where id in (v_review_other, v_review_buyer, v_review_approve, v_review_reject);
+
+  insert into public.reviews (
+    id, product_id, user_id, customer_name, rating, title, body, is_approved, rejected_at
+  ) values
+    (
+      v_review_other, v_prod, v_other, 'Other', 4, 'Other pending',
+      'Should not be readable by buyer', false, null
+    ),
+    (
+      v_review_buyer, v_prod, v_buyer, 'Buyer', 5, 'Buyer pending',
+      'Buyer may see own unapproved review', false, null
+    ),
+    (
+      v_review_approve, v_prod, v_other, 'Approvee', 5, 'Approve me',
+      'Admin will approve this review', false, null
+    ),
+    (
+      v_review_reject, v_prod, v_other, 'Rejectee', 2, 'Reject me',
+      'Admin will reject this review', false, null
+    );
 end $$;
 
 -- =========================================================================
@@ -279,6 +306,20 @@ begin
       '22222222-2222-4222-8222-222222222222'::uuid
     )$sql$
   );
+
+  perform pg_temp.expect_error(
+    'customer admin_moderate_review approve',
+    $sql$select public.admin_moderate_review(
+      '77777777-7777-4777-8777-777777777777'::uuid, 'approve'
+    )$sql$
+  );
+
+  perform pg_temp.expect_error(
+    'customer admin_moderate_review reject',
+    $sql$select public.admin_moderate_review(
+      '88888888-8888-4888-8888-888888888888'::uuid, 'reject'
+    )$sql$
+  );
 end $$;
 
 -- =========================================================================
@@ -309,6 +350,106 @@ begin
       '22222222-2222-4222-8222-222222222222'::uuid
     )$sql$
   );
+
+  perform pg_temp.expect_error(
+    'anon admin_moderate_review approve',
+    $sql$select public.admin_moderate_review(
+      '77777777-7777-4777-8777-777777777777'::uuid, 'approve'
+    )$sql$
+  );
+
+  perform pg_temp.expect_error(
+    'anon admin_moderate_review reject',
+    $sql$select public.admin_moderate_review(
+      '88888888-8888-4888-8888-888888888888'::uuid, 'reject'
+    )$sql$
+  );
+end $$;
+
+-- =========================================================================
+-- Reviews: customer cannot insert approved, update/delete, or read others' pending
+-- =========================================================================
+set local role authenticated;
+select pg_temp.set_auth_uid('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid);
+
+do $$
+declare
+  n int;
+  rid uuid;
+  blocked boolean := false;
+begin
+  -- Cannot read another customer's unapproved review
+  select id into rid
+  from public.reviews
+  where id = '55555555-5555-4555-8555-555555555555'::uuid;
+  if rid is not null then
+    raise exception 'FAIL: buyer can read other customer unapproved review';
+  end if;
+
+  -- Can still see own unapproved review
+  select count(*) into n
+  from public.reviews
+  where id = '66666666-6666-4666-8666-666666666666'::uuid;
+  if n <> 1 then
+    raise exception 'FAIL: buyer cannot read own unapproved review (count=%)', n;
+  end if;
+
+  -- Cannot insert with is_approved = true
+  begin
+    insert into public.reviews (
+      product_id, user_id, customer_name, rating, body, is_approved
+    ) values (
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid,
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
+      'Buyer', 5, 'Self-approved hack', true
+    );
+    raise exception 'FAIL: customer inserted review with is_approved = true';
+  exception
+    when raise_exception then
+      if sqlerrm like 'FAIL:%' then
+        raise;
+      end if;
+      blocked := true;
+    when insufficient_privilege then
+      blocked := true;
+    when others then
+      blocked := true;
+  end;
+  if not blocked then
+    raise exception 'FAIL: approved review insert was not blocked';
+  end if;
+
+  -- Cannot UPDATE any review directly
+  update public.reviews
+  set is_approved = true
+  where id = '66666666-6666-4666-8666-666666666666'::uuid;
+  get diagnostics n = row_count;
+  if n <> 0 then
+    raise exception 'FAIL: customer updated own review (% row(s))', n;
+  end if;
+
+  update public.reviews
+  set body = 'hacked'
+  where id = '55555555-5555-4555-8555-555555555555'::uuid;
+  get diagnostics n = row_count;
+  if n <> 0 then
+    raise exception 'FAIL: customer updated other review (% row(s))', n;
+  end if;
+
+  -- Cannot DELETE any review directly
+  delete from public.reviews
+  where id = '66666666-6666-4666-8666-666666666666'::uuid;
+  get diagnostics n = row_count;
+  if n <> 0 then
+    raise exception 'FAIL: customer deleted own review (% row(s))', n;
+  end if;
+
+  delete from public.reviews
+  where id = '55555555-5555-4555-8555-555555555555'::uuid;
+  get diagnostics n = row_count;
+  if n <> 0 then
+    raise exception 'FAIL: customer deleted other review (% row(s))', n;
+  end if;
 end $$;
 
 -- =========================================================================
@@ -475,6 +616,42 @@ begin
   );
   if res->>'payment_status' <> 'paid' then
     raise exception 'FAIL: mark COD paid returned %', res;
+  end if;
+
+  -- Admin can approve via RPC
+  res := public.admin_moderate_review(
+    '77777777-7777-4777-8777-777777777777'::uuid,
+    'approve'
+  );
+  if res->>'action' is distinct from 'approve' or (res->>'is_approved')::boolean is not true then
+    raise exception 'FAIL: admin approve returned %', res;
+  end if;
+
+  if not exists (
+    select 1 from public.reviews
+    where id = '77777777-7777-4777-8777-777777777777'::uuid
+      and is_approved = true
+      and rejected_at is null
+  ) then
+    raise exception 'FAIL: review not approved in table after admin RPC';
+  end if;
+
+  -- Admin can reject via RPC
+  res := public.admin_moderate_review(
+    '88888888-8888-4888-8888-888888888888'::uuid,
+    'reject'
+  );
+  if res->>'action' is distinct from 'reject' or (res->>'is_approved')::boolean is not false then
+    raise exception 'FAIL: admin reject returned %', res;
+  end if;
+
+  if not exists (
+    select 1 from public.reviews
+    where id = '88888888-8888-4888-8888-888888888888'::uuid
+      and is_approved = false
+      and rejected_at is not null
+  ) then
+    raise exception 'FAIL: review not rejected in table after admin RPC';
   end if;
 end $$;
 
