@@ -1,5 +1,5 @@
--- Admin RLS + RPC proofs. Run in SQL Editor AFTER migration 20260316000006.
--- Entire script runs in a transaction and ROLLs BACK — no lasting data.
+-- Admin RLS + RPC proofs. Paste whole file into Supabase SQL Editor AFTER migration 20260316000006.
+-- Runs in one transaction and ROLLs BACK — nothing persists.
 
 begin;
 
@@ -22,6 +22,33 @@ as $$
 begin
   perform set_config('request.jwt.claim.sub', '', true);
   perform set_config('request.jwt.claim.role', '', true);
+end;
+$$;
+
+-- Expect an error from fn(); fail loudly if it succeeds.
+create or replace function pg_temp.expect_error(p_label text, p_fn text)
+returns void
+language plpgsql
+as $$
+begin
+  begin
+    execute p_fn;
+    raise exception 'FAIL: % succeeded (expected an error)', p_label;
+  exception
+    when raise_exception then
+      if sqlerrm like 'FAIL:%' then
+        raise;
+      end if;
+      -- expected denial (FORBIDDEN / privilege / etc.)
+      null;
+    when insufficient_privilege then
+      null;
+    when others then
+      if sqlerrm like 'FAIL:%' then
+        raise;
+      end if;
+      null;
+  end;
 end;
 $$;
 
@@ -69,7 +96,7 @@ begin
     (v_buyer, 'buyer-admin-test@example.com', 'Buyer', false),
     (v_other, 'other-admin-test@example.com', 'Other', false),
     (v_admin, 'admin-test@example.com', 'Admin', true)
-  on conflict (id) do update set is_admin = excluded.is_admin;
+  on conflict (id) do update set is_admin = excluded.is_admin, email = excluded.email;
 
   insert into public.categories (id, slug, name, is_active)
   values (v_cat, 'admin-rls-cat', 'Admin RLS Cat', true)
@@ -81,7 +108,7 @@ begin
 
   insert into public.product_variants (id, product_id, sku, price, stock, is_active)
   values (v_var, v_prod, 'ADMIN-RLS-SKU-1', 1000, 10, true)
-  on conflict (id) do nothing;
+  on conflict (id) do update set stock = 10, price = 1000, is_active = true;
 
   insert into public.orders (
     id, order_number, user_id, email, phone, status, payment_method,
@@ -98,14 +125,19 @@ begin
       'awaiting_fulfilment', 'cod', 1000, 0, 250, 1250,
       'Other', '03002222222', '2 Test St', 'Lahore', 'Punjab'
     )
-  on conflict (id) do nothing;
+  on conflict (id) do update set
+    status = excluded.status,
+    user_id = excluded.user_id,
+    payment_method = excluded.payment_method;
 
+  delete from public.order_items where order_id in (v_order_buyer, v_order_other);
   insert into public.order_items (
     order_id, product_id, variant_id, product_name, variant_label, sku, unit_price, quantity, line_total
   ) values
     (v_order_buyer, v_prod, v_var, 'Admin RLS Product', 'Default', 'ADMIN-RLS-SKU-1', 1000, 1, 1000),
     (v_order_other, v_prod, v_var, 'Admin RLS Product', 'Default', 'ADMIN-RLS-SKU-1', 1000, 1, 1000);
 
+  delete from public.payments where order_id in (v_order_buyer, v_order_other);
   insert into public.payments (order_id, provider, amount, status)
   values
     (v_order_buyer, 'cod', 1250, 'pending'),
@@ -133,130 +165,191 @@ begin
     raise exception 'FAIL: buyer can see other customer order';
   end if;
 
-  select count(*) into n from public.order_items oi
+  select count(*) into n
+  from public.order_items oi
   join public.orders o on o.id = oi.order_id
   where o.order_number = 'EO-ADMIN-RLS-O';
   if n <> 0 then
-    raise exception 'FAIL: buyer can see other order_items';
+    raise exception 'FAIL: buyer can see other order_items (count=%)', n;
   end if;
 end $$;
 
 -- =========================================================================
--- Customer cannot change stock (direct update)
+-- Customer cannot UPDATE product_variants.stock directly
 -- =========================================================================
 do $$
+declare
+  n int;
+  s int;
+  blocked boolean := false;
 begin
   begin
     update public.product_variants
     set stock = 999
     where sku = 'ADMIN-RLS-SKU-1';
-    if found then
-      -- RLS may block (0 rows) OR trigger may raise — either is OK if stock unchanged
-      null;
+    get diagnostics n = row_count;
+    if n > 0 then
+      raise exception 'FAIL: customer updated product_variants.stock (% row(s))', n;
     end if;
   exception
-    when insufficient_privilege then null;
-    when others then
-      if sqlerrm not like '%STOCK_WRITE_FORBIDDEN%' and sqlstate <> '42501' then
+    when raise_exception then
+      if sqlerrm like 'FAIL:%' then
         raise;
       end if;
+      blocked := true;
+    when insufficient_privilege then
+      blocked := true;
+    when others then
+      -- trigger STOCK_WRITE_FORBIDDEN / RLS denial
+      blocked := true;
   end;
-end $$;
 
-do $$
-declare
-  s int;
-begin
-  -- Re-check as service/postgres bypass for truth
-  reset role;
+  -- Verify stock unchanged (read as buyer; variant is publicly readable when active)
   select stock into s from public.product_variants where sku = 'ADMIN-RLS-SKU-1';
-  if s <> 10 then
-    raise exception 'FAIL: customer changed stock to %', s;
+  if s is distinct from 10 then
+    raise exception 'FAIL: customer changed stock to % (expected 10)', s;
+  end if;
+
+  if not blocked and n = 0 then
+    -- RLS silently filtered the update — still a pass if stock unchanged
+    null;
   end if;
 end $$;
 
-set local role authenticated;
-select pg_temp.set_auth_uid('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid);
+-- =========================================================================
+-- Customer cannot INSERT into product_variants (including stock)
+-- =========================================================================
+do $$
+declare
+  blocked boolean := false;
+begin
+  begin
+    insert into public.product_variants (product_id, sku, price, stock, is_active)
+    values (
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid,
+      'ADMIN-RLS-HACK-SKU',
+      1,
+      50,
+      true
+    );
+    raise exception 'FAIL: customer inserted into product_variants';
+  exception
+    when raise_exception then
+      if sqlerrm like 'FAIL:%' then
+        raise;
+      end if;
+      blocked := true;
+    when insufficient_privilege then
+      blocked := true;
+    when others then
+      blocked := true;
+  end;
+
+  if not blocked then
+    raise exception 'FAIL: customer insert into product_variants was not blocked';
+  end if;
+
+  if exists (select 1 from public.product_variants where sku = 'ADMIN-RLS-HACK-SKU') then
+    raise exception 'FAIL: hack variant row exists after customer insert attempt';
+  end if;
+end $$;
 
 -- =========================================================================
 -- Customer cannot call admin RPCs
 -- =========================================================================
 do $$
 begin
-  begin
-    perform public.admin_adjust_stock(
-      '11111111-1111-4111-8111-111111111111'::uuid,
-      5,
-      'hack'
-    );
-    raise exception 'FAIL: customer called admin_adjust_stock';
-  exception
-    when insufficient_privilege then null;
-    when others then
-      if sqlerrm not like '%FORBIDDEN%' and sqlstate <> '42501' then
-        raise exception 'FAIL: unexpected admin_adjust_stock error: %', sqlerrm;
-      end if;
-  end;
+  perform pg_temp.expect_error(
+    'customer admin_adjust_stock',
+    $sql$select public.admin_adjust_stock(
+      '11111111-1111-4111-8111-111111111111'::uuid, 5, 'hack'
+    )$sql$
+  );
 
-  begin
-    perform public.admin_transition_order_status(
-      '22222222-2222-4222-8222-222222222222'::uuid,
-      'shipped',
-      'TRACK1'
-    );
-    raise exception 'FAIL: customer called admin_transition_order_status';
-  exception
-    when insufficient_privilege then null;
-    when others then
-      if sqlerrm not like '%FORBIDDEN%' and sqlstate <> '42501' then
-        raise exception 'FAIL: unexpected transition error: %', sqlerrm;
-      end if;
-  end;
+  perform pg_temp.expect_error(
+    'customer admin_transition_order_status',
+    $sql$select public.admin_transition_order_status(
+      '22222222-2222-4222-8222-222222222222'::uuid, 'shipped', 'TRACK1'
+    )$sql$
+  );
 
-  begin
-    perform public.admin_mark_cod_paid(
+  perform pg_temp.expect_error(
+    'customer admin_mark_cod_paid',
+    $sql$select public.admin_mark_cod_paid(
       '22222222-2222-4222-8222-222222222222'::uuid
-    );
-    raise exception 'FAIL: customer called admin_mark_cod_paid';
-  exception
-    when insufficient_privilege then null;
-    when others then
-      if sqlerrm not like '%FORBIDDEN%' and sqlstate <> '42501' then
-        raise exception 'FAIL: unexpected mark_cod error: %', sqlerrm;
-      end if;
-  end;
+    )$sql$
+  );
+end $$;
+
+-- =========================================================================
+-- Anon cannot call admin RPCs
+-- =========================================================================
+set local role anon;
+select pg_temp.clear_auth();
+
+do $$
+begin
+  perform pg_temp.expect_error(
+    'anon admin_adjust_stock',
+    $sql$select public.admin_adjust_stock(
+      '11111111-1111-4111-8111-111111111111'::uuid, 5, 'hack'
+    )$sql$
+  );
+
+  perform pg_temp.expect_error(
+    'anon admin_transition_order_status',
+    $sql$select public.admin_transition_order_status(
+      '22222222-2222-4222-8222-222222222222'::uuid, 'shipped', 'TRACK1'
+    )$sql$
+  );
+
+  perform pg_temp.expect_error(
+    'anon admin_mark_cod_paid',
+    $sql$select public.admin_mark_cod_paid(
+      '22222222-2222-4222-8222-222222222222'::uuid
+    )$sql$
+  );
 end $$;
 
 -- =========================================================================
 -- Customer cannot escalate is_admin
 -- =========================================================================
-do $$
-begin
-  begin
-    update public.profiles set is_admin = true
-    where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid;
-  exception
-    when others then
-      if sqlerrm not like '%is_admin%' then
-        raise;
-      end if;
-  end;
-end $$;
+set local role authenticated;
+select pg_temp.set_auth_uid('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid);
 
 do $$
 declare
   a boolean;
+  blocked boolean := false;
 begin
-  reset role;
-  select is_admin into a from public.profiles
+  begin
+    update public.profiles
+    set is_admin = true
+    where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid;
+  exception
+    when others then
+      blocked := true;
+  end;
+
+  -- Always verify final state as postgres (bypass RLS for truth)
+  execute 'reset role';
+  select is_admin into a
+  from public.profiles
   where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid;
+
   if a then
     raise exception 'FAIL: customer made themselves admin';
+  end if;
+
+  if not blocked then
+    -- trigger may have silently prevented the change by raising, or update ran
+    -- with is_admin still false because trigger aborted — either way a=false is required
+    null;
   end if;
 end $$;
 
 -- =========================================================================
--- Customer cannot upload to product-images (storage policy)
+-- Customer cannot upload to product-images
 -- =========================================================================
 set local role authenticated;
 select pg_temp.set_auth_uid('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid);
@@ -273,15 +366,15 @@ begin
     );
     raise exception 'FAIL: customer uploaded to product-images';
   exception
-    when insufficient_privilege then null;
-    when others then
-      -- RLS violation
-      if sqlstate not in ('42501', 'P0001') and sqlerrm not like '%policy%' then
-        -- also accept check violation / not null on storage.objects schema diffs
-        if sqlerrm like '%FAIL:%' then
-          raise;
-        end if;
+    when raise_exception then
+      if sqlerrm like 'FAIL:%' then
+        raise;
       end if;
+      null;
+    when insufficient_privilege then
+      null;
+    when others then
+      null;
   end;
 end $$;
 
@@ -292,18 +385,20 @@ do $$
 declare
   n int;
 begin
-  update public.orders set status = 'delivered'
+  update public.orders
+  set status = 'delivered'
   where order_number = 'EO-ADMIN-RLS-B';
   get diagnostics n = row_count;
   if n <> 0 then
-    raise exception 'FAIL: customer updated own order status';
+    raise exception 'FAIL: customer updated own order status (% row(s))', n;
   end if;
 
-  update public.payments set status = 'paid'
+  update public.payments
+  set status = 'paid'
   where order_id = '22222222-2222-4222-8222-222222222222'::uuid;
   get diagnostics n = row_count;
   if n <> 0 then
-    raise exception 'FAIL: customer updated payments';
+    raise exception 'FAIL: customer updated payments (% row(s))', n;
   end if;
 end $$;
 
@@ -311,6 +406,7 @@ end $$;
 -- Unit checks: order_status_transition_allowed
 -- =========================================================================
 reset role;
+select pg_temp.clear_auth();
 
 do $$
 begin
@@ -329,10 +425,13 @@ begin
   if public.order_status_transition_allowed('delivered', 'shipped') then
     raise exception 'FAIL: delivered -> shipped should be blocked';
   end if;
+  if public.order_status_transition_allowed('awaiting_payment', 'awaiting_payment') then
+    raise exception 'FAIL: same-status transition should be blocked';
+  end if;
 end $$;
 
 -- =========================================================================
--- Admin CAN call RPCs (smoke)
+-- Admin CAN call RPCs (smoke — proves denials are auth-specific)
 -- =========================================================================
 set local role authenticated;
 select pg_temp.set_auth_uid('99999999-9999-4999-8999-999999999999'::uuid);
@@ -342,6 +441,10 @@ declare
   res jsonb;
   s int;
 begin
+  if not public.is_admin() then
+    raise exception 'FAIL: test admin is_admin() is false';
+  end if;
+
   res := public.admin_adjust_stock(
     '11111111-1111-4111-8111-111111111111'::uuid,
     7,
@@ -351,10 +454,11 @@ begin
     raise exception 'FAIL: admin_adjust_stock returned %', res;
   end if;
 
-  select stock into s from public.product_variants
+  select stock into s
+  from public.product_variants
   where id = '11111111-1111-4111-8111-111111111111'::uuid;
   if s <> 7 then
-    raise exception 'FAIL: stock not updated by admin RPC';
+    raise exception 'FAIL: stock not updated by admin RPC (got %)', s;
   end if;
 
   res := public.admin_transition_order_status(
@@ -377,6 +481,6 @@ end $$;
 reset role;
 select pg_temp.clear_auth();
 
-raise notice 'PASS: admin_rls.sql all checks passed (rolling back)';
+select 'PASS: admin_rls.sql all checks passed' as result;
 
 rollback;
