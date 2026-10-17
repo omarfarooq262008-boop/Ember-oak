@@ -1,4 +1,4 @@
-import { store } from '@/config/store'
+import { useStoreSettings } from '@/hooks/useStoreSettings'
 import { formatPKR } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -7,8 +7,12 @@ interface FreeDeliveryBarProps {
   className?: string
 }
 
-export function FreeDeliveryBar({ subtotalAfterDiscount, className }: FreeDeliveryBarProps) {
-  const { freeAbovePKR } = store.delivery
+export function FreeDeliveryBar({
+  subtotalAfterDiscount,
+  className,
+}: FreeDeliveryBarProps) {
+  const { delivery } = useStoreSettings()
+  const { freeAbovePKR } = delivery
   const remainingForFree = Math.max(0, freeAbovePKR - subtotalAfterDiscount)
   const progress = Math.min(100, (subtotalAfterDiscount / freeAbovePKR) * 100)
   const qualified = remainingForFree === 0

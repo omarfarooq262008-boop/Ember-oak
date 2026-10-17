@@ -1,5 +1,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 
+import { AdminGate } from '@/components/admin/AdminGate'
+import { AdminLayout } from '@/components/admin/AdminLayout'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { AboutPage } from '@/pages/AboutPage'
 import { AccountPage } from '@/pages/AccountPage'
@@ -21,6 +23,18 @@ import { SearchPage } from '@/pages/SearchPage'
 import { ShippingPage } from '@/pages/ShippingPage'
 import { ShopPage } from '@/pages/ShopPage'
 import { TermsPage } from '@/pages/TermsPage'
+import { AdminContactPage } from '@/pages/admin/AdminContactPage'
+import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
+import { AdminDiscountsPage } from '@/pages/admin/AdminDiscountsPage'
+import { AdminEventsPage } from '@/pages/admin/AdminEventsPage'
+import { AdminInventoryPage } from '@/pages/admin/AdminInventoryPage'
+import { AdminNewsletterPage } from '@/pages/admin/AdminNewsletterPage'
+import { AdminOrderDetailPage } from '@/pages/admin/AdminOrderDetailPage'
+import { AdminOrdersPage } from '@/pages/admin/AdminOrdersPage'
+import { AdminProductFormPage } from '@/pages/admin/AdminProductFormPage'
+import { AdminProductsPage } from '@/pages/admin/AdminProductsPage'
+import { AdminReviewsPage } from '@/pages/admin/AdminReviewsPage'
+import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage'
 
 const router = createBrowserRouter([
   {
@@ -49,6 +63,30 @@ const router = createBrowserRouter([
       { path: 'account', element: <AccountPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+  {
+    path: '/admin',
+    element: <AdminGate />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <AdminDashboardPage /> },
+          { path: 'products', element: <AdminProductsPage /> },
+          { path: 'products/new', element: <AdminProductFormPage /> },
+          { path: 'products/:id', element: <AdminProductFormPage /> },
+          { path: 'inventory', element: <AdminInventoryPage /> },
+          { path: 'orders', element: <AdminOrdersPage /> },
+          { path: 'orders/:id', element: <AdminOrderDetailPage /> },
+          { path: 'discounts', element: <AdminDiscountsPage /> },
+          { path: 'reviews', element: <AdminReviewsPage /> },
+          { path: 'messages', element: <AdminContactPage /> },
+          { path: 'newsletter', element: <AdminNewsletterPage /> },
+          { path: 'settings', element: <AdminSettingsPage /> },
+          { path: 'events', element: <AdminEventsPage /> },
+        ],
+      },
     ],
   },
 ])

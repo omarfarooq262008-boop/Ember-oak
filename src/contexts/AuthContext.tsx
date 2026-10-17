@@ -16,6 +16,7 @@ export type Profile = {
   email: string | null
   full_name: string | null
   phone: string | null
+  is_admin: boolean
 }
 
 type AuthContextValue = {
@@ -47,7 +48,7 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   if (!supabase) return null
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, full_name, phone')
+    .select('id, email, full_name, phone, is_admin')
     .eq('id', userId)
     .maybeSingle()
   if (error || !data) return null

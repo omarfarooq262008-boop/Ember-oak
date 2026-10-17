@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils'
 
 export function Header() {
   const shrunk = useScrollShrink(32)
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const { itemCount, openCart } = useCart()
   const [pop, setPop] = useState(false)
   const prevCount = useRef(itemCount)
@@ -136,6 +136,15 @@ export function Header() {
                   >
                     Contact
                   </Link>
+                  {profile?.is_admin ? (
+                    <Link
+                      to="/admin"
+                      className="touch-target flex items-center px-2 text-base font-medium text-accent"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Admin
+                    </Link>
+                  ) : null}
                   <Button
                     type="button"
                     variant="secondary"
@@ -227,6 +236,11 @@ export function Header() {
             >
               <SearchIcon className="size-5" aria-hidden />
             </Button>
+            {!authLoading && profile?.is_admin ? (
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+                <Link to="/admin">Admin</Link>
+              </Button>
+            ) : null}
             {!authLoading && user ? (
               <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
                 <Link to="/account" aria-label="Account">

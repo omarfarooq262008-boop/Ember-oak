@@ -12,8 +12,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { SoftImage } from '@/components/ui/soft-image'
-import { store } from '@/config/store'
 import { useCart } from '@/contexts/CartContext'
+import { useStoreSettings } from '@/hooks/useStoreSettings'
 import { formatPKR } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +30,8 @@ export function CartDrawer() {
     removeItem,
   } = useCart()
 
-  const { freeAbovePKR } = store.delivery
+  const { delivery } = useStoreSettings()
+  const { freeAbovePKR } = delivery
   const afterDiscount = Math.max(0, subtotal - discountAmount)
   const remainingForFree = Math.max(0, freeAbovePKR - afterDiscount)
   const progress = Math.min(100, (afterDiscount / freeAbovePKR) * 100)

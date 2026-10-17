@@ -24,6 +24,12 @@ export const FLAT_DELIVERY_FEE_PKR = 250
 export type DiscountType = DiscountTypeCore
 export type DiscountRule = DiscountRuleCore
 
+export {
+  getDeliveryThresholds,
+  setDeliveryThresholds,
+} from '@/lib/pricingRuntime'
+import { computeDeliveryFeeFromSettings } from '@/lib/pricingRuntime'
+
 export function computeLineTotal(unitPrice: number, quantity: number): number {
   if (unitPrice < 0 || quantity < 0) return 0
   return unitPrice * quantity
@@ -47,8 +53,7 @@ export function computeDiscountAmount(
 }
 
 export function computeDeliveryFee(subtotalAfterDiscount: number): number {
-  if (subtotalAfterDiscount >= FREE_DELIVERY_ABOVE_PKR) return 0
-  return FLAT_DELIVERY_FEE_PKR
+  return computeDeliveryFeeFromSettings(subtotalAfterDiscount)
 }
 
 export function computeOrderTotal(

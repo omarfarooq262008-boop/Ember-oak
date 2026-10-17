@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { store } from '@/config/store'
+import { useStoreSettings } from '@/hooks/useStoreSettings'
 import { submitContactRemote } from '@/lib/checkoutApi'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +16,11 @@ type FieldErrors = Partial<
 
 export function ContactPage() {
   const { support } = store
+  const { contact } = useStoreSettings()
+  const emailDisplay = contact.email || support.email
+  const phoneDisplay = contact.phone || support.phone
+  const whatsappDisplay = contact.whatsapp || support.whatsapp
+  const whatsappUrl = `https://wa.me/${whatsappDisplay.replace(/\D/g, '')}`
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -112,23 +118,23 @@ export function ContactPage() {
         <div className="mt-8 space-y-2 text-sm text-muted">
           <p>
             <a
-              href={`mailto:${support.email}`}
+              href={`mailto:${emailDisplay}`}
               className="font-medium text-text hover:text-accent"
             >
-              {support.email}
+              {emailDisplay}
             </a>
           </p>
           <p>
             <a
-              href={`tel:${support.phone.replace(/\s/g, '')}`}
+              href={`tel:${phoneDisplay.replace(/\s/g, '')}`}
               className="hover:text-accent"
             >
-              {support.phone}
+              {phoneDisplay}
             </a>
           </p>
           <p>
-            <a href={support.whatsappUrl} className="hover:text-accent">
-              WhatsApp {support.whatsapp}
+            <a href={whatsappUrl} className="hover:text-accent">
+              WhatsApp {whatsappDisplay}
             </a>
           </p>
           <p className="pt-2">
