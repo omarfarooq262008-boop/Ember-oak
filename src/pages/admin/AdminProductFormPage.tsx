@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import {
   deleteProductImage,
   getProduct,
+  isSlugTaken,
   isSupabaseConfigured,
   listCategoriesForAdmin,
   listCollectionsForAdmin,
@@ -95,6 +96,11 @@ export function AdminProductFormPage() {
   const [images, setImages] = useState<AdminProductImageRow[]>([])
   const [uploading, setUploading] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+
+  useEffect(() => {
+    document.title = isNew ? 'New product | Admin' : 'Edit product | Admin'
+  }, [isNew])
 
   const productQuery = useQuery({
     queryKey: ['admin', 'product', id],
@@ -167,15 +173,30 @@ export function AdminProductFormPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const parsedVariants = variants.map((v) => {
+      setFormError(null)
+      if (!name.trim()) throw new Error('Name is required.')
+      if (!slug.trim()) throw new Error('Slug is required.')
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())) {
+        throw new Error('Slug must be lowercase letters, numbers, and hyphens.')
+      }
+      if (await isSlugTaken(slug.trim(), isNew ? undefined : id)) {
+        throw new Error('That slug is already used by another product.')
+      }
+      if (variants.length < 1) throw new Error('Add at least one variant.')
+
+      const parsedVariants = variants.map((v, index) => {
         const price = Number(v.price)
         const stock = Number(v.stock)
         const compare = v.compare_at_price.trim() ? Number(v.compare_at_price) : null
-        if (!v.sku.trim()) throw new Error('Each variant needs a SKU.')
-        if (Number.isNaN(price) || price < 0) throw new Error('Invalid variant price.')
-        if (Number.isNaN(stock) || stock < 0) throw new Error('Stock cannot be negative.')
+        if (!v.sku.trim()) throw new Error(`Variant ${index + 1}: SKU is required.`)
+        if (Number.isNaN(price) || price < 0) {
+          throw new Error(`Variant ${index + 1}: price cannot be negative.`)
+        }
+        if (Number.isNaN(stock) || stock < 0 || !Number.isInteger(stock)) {
+          throw new Error(`Variant ${index + 1}: stock must be a whole number ≥ 0.`)
+        }
         if (compare != null && (Number.isNaN(compare) || compare < 0)) {
-          throw new Error('Invalid compare-at price.')
+          throw new Error(`Variant ${index + 1}: compare-at price cannot be negative.`)
         }
         return {
           id: v.id,
@@ -191,11 +212,7 @@ export function AdminProductFormPage() {
 
       const skus = parsedVariants.map((v) => v.sku.toUpperCase())
       if (new Set(skus).size !== skus.length) {
-        throw new Error('SKUs must be unique.')
-      }
-
-      if (!name.trim() || !slug.trim()) {
-        throw new Error('Name and slug are required.')
+        throw new Error('SKUs must be unique across variants.')
       }
 
       return upsertProduct({
@@ -219,6 +236,7 @@ export function AdminProductFormPage() {
       })
     },
     onSuccess: async (productId) => {
+      setFormError(null)
       toast.success(isNew ? 'Product created' : 'Product saved')
       await qc.invalidateQueries({ queryKey: ['admin', 'products'] })
       if (isNew) {
@@ -227,7 +245,10 @@ export function AdminProductFormPage() {
         await qc.invalidateQueries({ queryKey: ['admin', 'product', id] })
       }
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      setFormError(err.message)
+      toast.error(err.message)
+    },
   })
 
   const onSubmit = (e: FormEvent) => {
@@ -331,7 +352,16 @@ export function AdminProductFormPage() {
         </div>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-10">
+      <form onSubmit={onSubmit} className="space-y-10" noValidate>
+        {formError ? (
+          <div
+            role="alert"
+            className="rounded-(--radius-sm) border border-error/40 bg-error/10 px-4 py-3 text-sm text-error"
+          >
+            {formError}
+          </div>
+        ) : null}
+
         <section className="space-y-4 rounded-(--radius-card) border border-border bg-surface p-6">
           <h2 className="font-display text-lg font-semibold">Basics</h2>
           <div className="grid gap-4 sm:grid-cols-2">

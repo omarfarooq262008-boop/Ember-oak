@@ -41,9 +41,22 @@ export function AdminDashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-text">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted">Store overview at a glance.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-text">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted">Store overview at a glance.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link to="/admin/products/new">New product</Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link to="/admin/reviews">Review queue</Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link to="/admin/products">All products</Link>
+          </Button>
+        </div>
       </div>
 
       {isError ? (

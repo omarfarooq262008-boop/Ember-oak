@@ -114,12 +114,23 @@ function storagePathFromUrl(url: string): string | null {
   return url.slice(idx + marker.length)
 }
 
-export async function listProducts(search?: string): Promise<AdminProductRow[]> {
+export type AdminProductListItem = AdminProductRow & {
+  thumbnail_url: string | null
+  stock_total: number
+  variant_count: number
+}
+
+export async function listProducts(search?: string): Promise<AdminProductListItem[]> {
   const client = requireClient()
   let q = client
     .from('products')
     .select(
-      'id, slug, name, short_description, description, category_id, materials, dimensions, care, tags, is_active, is_featured, is_bestseller, seo_title, seo_description, archived_at, created_at, updated_at',
+      `
+      id, slug, name, short_description, description, category_id, materials, dimensions, care, tags,
+      is_active, is_featured, is_bestseller, seo_title, seo_description, archived_at, created_at, updated_at,
+      product_images ( url, is_primary, sort_order ),
+      product_variants ( stock, is_active )
+    `,
     )
     .is('archived_at', null)
     .order('updated_at', { ascending: false })
@@ -131,7 +142,49 @@ export async function listProducts(search?: string): Promise<AdminProductRow[]> 
 
   const { data, error } = await q
   if (error) throw new AdminApiError(error.message)
-  return (data ?? []) as AdminProductRow[]
+
+  return (data ?? []).map((row) => {
+    const images = (row.product_images ?? []) as Array<{
+      url: string
+      is_primary: boolean
+      sort_order: number
+    }>
+    const variants = (row.product_variants ?? []) as Array<{
+      stock: number
+      is_active: boolean
+    }>
+    const primary =
+      images.find((i) => i.is_primary) ??
+      [...images].sort((a, b) => a.sort_order - b.sort_order)[0]
+    const stock_total = variants
+      .filter((v) => v.is_active)
+      .reduce((sum, v) => sum + Number(v.stock), 0)
+
+    const {
+      product_images: _images,
+      product_variants: _variants,
+      ...product
+    } = row as AdminProductRow & {
+      product_images?: unknown
+      product_variants?: unknown
+    }
+
+    return {
+      ...(product as AdminProductRow),
+      thumbnail_url: primary?.url ?? null,
+      stock_total,
+      variant_count: variants.length,
+    }
+  })
+}
+
+export async function isSlugTaken(slug: string, excludeId?: string): Promise<boolean> {
+  const client = requireClient()
+  let q = client.from('products').select('id').eq('slug', slug).limit(1)
+  if (excludeId) q = q.neq('id', excludeId)
+  const { data, error } = await q
+  if (error) throw new AdminApiError(error.message)
+  return (data?.length ?? 0) > 0
 }
 
 export async function getProduct(id: string): Promise<AdminProductDetail | null> {
@@ -647,7 +700,8 @@ export async function dashboardStats(): Promise<DashboardStats> {
     client
       .from('reviews')
       .select('id', { count: 'exact', head: true })
-      .eq('is_approved', false),
+      .eq('is_approved', false)
+      .is('rejected_at', null),
     client
       .from('orders')
       .select('id, order_number, email, status, payment_method, total, created_at, shipping_name')
@@ -758,8 +812,11 @@ export async function listPendingReviews(): Promise<ReviewAdminRow[]> {
   const client = requireClient()
   const { data, error } = await client
     .from('reviews')
-    .select('id, product_id, customer_name, rating, title, body, is_approved, created_at, products(name, slug)')
+    .select(
+      'id, product_id, customer_name, rating, title, body, is_approved, created_at, products(name, slug)',
+    )
     .eq('is_approved', false)
+    .is('rejected_at', null)
     .order('created_at', { ascending: false })
     .limit(100)
   if (error) throw new AdminApiError(error.message)
@@ -769,19 +826,28 @@ export async function listPendingReviews(): Promise<ReviewAdminRow[]> {
     }
     const prod = r.products
     const products =
-      prod == null
-        ? null
-        : Array.isArray(prod)
-          ? prod[0] ?? null
-          : prod
+      prod == null ? null : Array.isArray(prod) ? (prod[0] ?? null) : prod
     return { ...r, products }
   })
 }
 
-export async function setReviewApproved(id: string, approved: boolean): Promise<void> {
-  const client = requireClient()
-  const { error } = await client.from('reviews').update({ is_approved: approved }).eq('id', id)
-  if (error) throw new AdminApiError(error.message)
+/** Approve or reject via SECURITY DEFINER RPC (no direct reviews UPDATE). */
+export async function moderateReview(
+  id: string,
+  action: 'approve' | 'reject',
+): Promise<void> {
+  await adminRpc('admin_moderate_review', {
+    p_review_id: id,
+    p_action: action,
+  })
+}
+
+/** @deprecated use moderateReview */
+export async function setReviewApproved(
+  id: string,
+  approved: boolean,
+): Promise<void> {
+  await moderateReview(id, approved ? 'approve' : 'reject')
 }
 
 export type ContactMessageRow = {

@@ -73,12 +73,22 @@ const router = createBrowserRouter([
         element: <AdminLayout />,
         children: [
           { index: true, element: <AdminDashboardPage /> },
-          { path: 'products', element: <AdminProductsPage /> },
-          { path: 'products/new', element: <AdminProductFormPage /> },
-          { path: 'products/:id', element: <AdminProductFormPage /> },
+          {
+            path: 'products',
+            children: [
+              { index: true, element: <AdminProductsPage /> },
+              { path: 'new', element: <AdminProductFormPage /> },
+              { path: ':id', element: <AdminProductFormPage /> },
+            ],
+          },
           { path: 'inventory', element: <AdminInventoryPage /> },
-          { path: 'orders', element: <AdminOrdersPage /> },
-          { path: 'orders/:id', element: <AdminOrderDetailPage /> },
+          {
+            path: 'orders',
+            children: [
+              { index: true, element: <AdminOrdersPage /> },
+              { path: ':id', element: <AdminOrderDetailPage /> },
+            ],
+          },
           { path: 'discounts', element: <AdminDiscountsPage /> },
           { path: 'reviews', element: <AdminReviewsPage /> },
           { path: 'messages', element: <AdminContactPage /> },
