@@ -38,7 +38,11 @@ export function ConfirmDialog({
       <DialogContent aria-describedby={description ? undefined : undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
+          {description ? (
+            <DialogDescription asChild>
+              <div className="text-sm text-muted">{description}</div>
+            </DialogDescription>
+          ) : null}
         </DialogHeader>
         <DialogFooter>
           <Button
