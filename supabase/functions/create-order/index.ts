@@ -221,8 +221,11 @@ Deno.serve(async (req) => {
       ip,
     })
 
-    // Non-blocking confirmation email
-    if (!(result.idempotent ?? false)) {
+    // COD / bank: "Order received" immediately. Card: wait until payment succeeds.
+    if (
+      !(result.idempotent ?? false) &&
+      (body.paymentMethod === 'cod' || body.paymentMethod === 'bank_transfer')
+    ) {
       void sendTransactionalEmail(admin, {
         idempotencyKey: `order_confirmation:${result.order_number}`,
         template: 'order_confirmation',
@@ -232,6 +235,7 @@ Deno.serve(async (req) => {
           customerName: body.shipping.name,
           total: `PKR ${Number(result.total).toLocaleString('en-PK')}`,
           paymentReference: orderRow?.payment_reference ?? undefined,
+          paid: false,
         },
       })
     }

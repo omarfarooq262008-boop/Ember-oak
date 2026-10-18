@@ -1,6 +1,7 @@
 /**
- * send-order-email — transactional mail for status changes (non-blocking for callers).
- * Authenticated admin OR service role. Rate limited.
+ * send-order-email — transactional mail for status changes / outbox retry.
+ * Authenticated admin OR service role. Failures return JSON but never throw
+ * into order-transition callers (UI treats invoke as fire-and-forget).
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
@@ -13,13 +14,18 @@ import {
 const BodySchema = z.object({
   orderId: z.string().uuid().optional(),
   orderNumber: z.string().min(4).max(64).optional(),
-  template: z.enum([
-    'order_confirmation',
-    'payment_received',
-    'order_shipped',
-    'order_cancelled',
-    'order_refunded',
-  ]),
+  outboxId: z.string().uuid().optional(),
+  template: z
+    .enum([
+      'order_confirmation',
+      'payment_received',
+      'payment_failed',
+      'order_shipped',
+      'order_cancelled',
+      'order_refunded',
+      'contact_notification',
+    ])
+    .optional(),
 })
 
 Deno.serve(async (req) => {
@@ -38,7 +44,6 @@ Deno.serve(async (req) => {
   }
   const admin = createClient(supabaseUrl, serviceKey)
 
-  // Prefer admin JWT; allow service-role style internal calls with service key
   const authHeader = req.headers.get('Authorization') ?? ''
   let isAllowed = false
   if (authHeader.startsWith('Bearer ')) {
@@ -70,6 +75,32 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid input' }, 400)
   }
 
+  // Retry path: resend from email_outbox by id
+  if (parsed.data.outboxId) {
+    const { data: row, error } = await admin
+      .from('email_outbox')
+      .select('*')
+      .eq('id', parsed.data.outboxId)
+      .maybeSingle()
+    if (error || !row) {
+      return json({ error: 'Outbox row not found' }, 404)
+    }
+    if (row.status === 'sent') {
+      return json({ ok: true, skipped: true })
+    }
+    const result = await sendTransactionalEmail(admin, {
+      idempotencyKey: row.idempotency_key,
+      template: row.template as EmailTemplateId,
+      to: row.to_email,
+      data: (row.payload ?? {}) as Parameters<typeof sendTransactionalEmail>[1]['data'],
+    })
+    return json({ ok: result.ok, skipped: result.skipped ?? false, error: result.error })
+  }
+
+  if (!parsed.data.template) {
+    return json({ error: 'template or outboxId required' }, 400)
+  }
+
   let q = admin
     .from('orders')
     .select(
@@ -85,6 +116,7 @@ Deno.serve(async (req) => {
   }
 
   const template = parsed.data.template as EmailTemplateId
+  const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(/\/$/, '')
   const result = await sendTransactionalEmail(admin, {
     idempotencyKey: `${template}:${order.order_number}`,
     template,
@@ -95,6 +127,8 @@ Deno.serve(async (req) => {
       total: `PKR ${Number(order.total).toLocaleString('en-PK')}`,
       trackingNumber: order.tracking_number ?? undefined,
       paymentReference: order.payment_reference ?? undefined,
+      paid: template === 'order_confirmation' && order.status !== 'pending_payment',
+      retryUrl: `${appUrl}/mock-checkout?order=${encodeURIComponent(order.order_number)}`,
     },
   })
 

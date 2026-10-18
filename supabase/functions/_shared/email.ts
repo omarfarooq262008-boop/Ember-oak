@@ -8,6 +8,7 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 export type EmailTemplateId =
   | 'order_confirmation'
   | 'payment_received'
+  | 'payment_failed'
   | 'order_shipped'
   | 'order_cancelled'
   | 'order_refunded'
@@ -109,23 +110,31 @@ export function buildOrderEmail(
     paymentReference?: string
     contactName?: string
     contactMessage?: string
+    /** When true, card payment succeeded — use “Order confirmed” wording */
+    paid?: boolean
+    retryUrl?: string
   },
 ): { subject: string; model: EmailModel } {
   const base = appUrl()
   const trackUrl = `${base}/track-order`
   const orderLabel = escapeHtml(data.orderNumber)
+  const received = !data.paid
 
   switch (template) {
     case 'order_confirmation':
       return {
-        subject: `Order confirmed — ${data.orderNumber}`,
+        subject: received
+          ? `Order received — ${data.orderNumber}`
+          : `Order confirmed — ${data.orderNumber}`,
         model: {
-          preheader: `We've received order ${data.orderNumber}`,
-          heading: 'Order confirmed',
-          bodyHtml: `<p style="margin:0 0 12px;">Thanks${data.customerName ? `, ${escapeHtml(data.customerName)}` : ''}. We've received <strong>${orderLabel}</strong>${data.total ? ` for <strong>${escapeHtml(data.total)}</strong>` : ''}.</p>
+          preheader: received
+            ? `We've received order ${data.orderNumber}`
+            : `Order ${data.orderNumber} is confirmed`,
+          heading: received ? 'Order received' : 'Order confirmed',
+          bodyHtml: `<p style="margin:0 0 12px;">Thanks${data.customerName ? `, ${escapeHtml(data.customerName)}` : ''}. We've ${received ? 'received' : 'confirmed'} <strong>${orderLabel}</strong>${data.total ? ` for <strong>${escapeHtml(data.total)}</strong>` : ''}.</p>
             ${data.paymentReference ? `<p style="margin:0 0 12px;">Bank transfer reference: <strong>${escapeHtml(data.paymentReference)}</strong></p>` : ''}
-            <p style="margin:0;">We'll email you again when payment is confirmed or your order ships.</p>`,
-          bodyText: `Thanks. We've received order ${data.orderNumber}${data.total ? ` for ${data.total}` : ''}.${data.paymentReference ? ` Bank reference: ${data.paymentReference}.` : ''}`,
+            <p style="margin:0;">${received ? "We'll email you again when payment is confirmed or your order ships." : 'Your order is now being prepared.'}</p>`,
+          bodyText: `Thanks. We've ${received ? 'received' : 'confirmed'} order ${data.orderNumber}${data.total ? ` for ${data.total}` : ''}.${data.paymentReference ? ` Bank reference: ${data.paymentReference}.` : ''}`,
           buttonLabel: 'Track order',
           buttonUrl: trackUrl,
         },
@@ -142,6 +151,23 @@ export function buildOrderEmail(
           buttonUrl: trackUrl,
         },
       }
+    case 'payment_failed': {
+      const retry =
+        data.retryUrl ??
+        `${base}/mock-checkout?order=${encodeURIComponent(data.orderNumber)}`
+      return {
+        subject: `Payment didn't go through — ${data.orderNumber}`,
+        model: {
+          preheader: `Payment for ${data.orderNumber} did not complete`,
+          heading: "Payment didn't go through",
+          bodyHtml: `<p style="margin:0 0 12px;">We couldn't confirm payment for <strong>${orderLabel}</strong>.</p>
+            <p style="margin:0;">You can try again using the button below. Your items stay reserved for a short time.</p>`,
+          bodyText: `Payment for ${data.orderNumber} did not go through. Retry: ${retry}`,
+          buttonLabel: 'Retry payment',
+          buttonUrl: retry,
+        },
+      }
+    }
     case 'order_shipped':
       return {
         subject: `Shipped — ${data.orderNumber}`,
@@ -278,6 +304,8 @@ export async function sendTransactionalEmail(
         payload: {
           key: opts.idempotencyKey,
           template: opts.template,
+          to: opts.to,
+          outboxId: outboxId ?? null,
           error: result.error,
         },
       })
@@ -295,7 +323,12 @@ export async function sendTransactionalEmail(
     const message = e instanceof Error ? e.message : 'email error'
     await admin.from('app_events').insert({
       event_type: 'email_send_failed',
-      payload: { key: opts.idempotencyKey, error: message },
+      payload: {
+        key: opts.idempotencyKey,
+        template: opts.template,
+        to: opts.to,
+        error: message,
+      },
     })
     return { ok: false, error: message }
   }

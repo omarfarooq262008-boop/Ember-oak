@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -24,16 +24,16 @@ import {
   sendOrderEmail,
   transitionOrder,
 } from '@/lib/admin/api'
-import { allowedNextStatuses, STATUS_LABELS } from '@/lib/admin/orderStatus'
+import { getOrderActionStates, type OrderActionId } from '@/lib/admin/orderActions'
+import { STATUS_LABELS } from '@/lib/admin/orderStatus'
 import { formatPKR } from '@/lib/format'
-import type { OrderStatus } from '@/types'
 
 export function AdminOrderDetailPage() {
   const { id } = useParams()
   const qc = useQueryClient()
   const [tracking, setTracking] = useState('')
-  const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null)
-  const [confirmRefund, setConfirmRefund] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [dialog, setDialog] = useState<'ship' | 'cancel' | 'refund' | null>(null)
   const [busy, setBusy] = useState(false)
 
   const { data: order, isLoading, isError, refetch } = useQuery({
@@ -48,80 +48,114 @@ export function AdminOrderDetailPage() {
     }
   }, [order?.tracking_number])
 
-  const nextStatuses = order
-    ? allowedNextStatuses(order.status).filter((s) => s !== 'refunded')
-    : []
   const payment = order?.payments[0]
-  const canRefund =
-    order &&
-    order.status !== 'cancelled' &&
-    order.status !== 'refunded' &&
-    allowedNextStatuses(order.status).includes('refunded')
+  const actions = useMemo(
+    () =>
+      order
+        ? getOrderActionStates({
+            status: order.status,
+            paymentMethod: order.payment_method,
+            paymentStatus: payment?.status ?? null,
+          })
+        : [],
+    [order, payment?.status],
+  )
 
-  const runTransition = async (status: OrderStatus) => {
+  const refresh = async () => {
     if (!id) return
+    await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
+    await qc.invalidateQueries({ queryKey: ['admin', 'orders'] })
+  }
+
+  const runAction = async (action: OrderActionId) => {
+    if (!id || !order) return
+
+    if (action === 'ship') {
+      setDialog('ship')
+      return
+    }
+    if (action === 'cancel') {
+      setDialog('cancel')
+      return
+    }
+    if (action === 'refund') {
+      setDialog('refund')
+      return
+    }
+
     setBusy(true)
     try {
-      await transitionOrder(
-        id,
-        status,
-        status === 'shipped' ? tracking : undefined,
-      )
-      toast.success(`Status updated to ${STATUS_LABELS[status]}`)
-      setPendingStatus(null)
-      if (status === 'shipped') {
-        void sendOrderEmail(id, 'order_shipped')
-      } else if (status === 'cancelled') {
-        void sendOrderEmail(id, 'order_cancelled')
+      if (action === 'mark_cod_paid') {
+        await markCodPaid(id)
+        toast.success('COD marked as paid')
+        void sendOrderEmail(id, 'payment_received')
+      } else if (action === 'mark_bank_paid') {
+        await markBankPaid(id)
+        toast.success('Bank transfer marked as paid')
+        void sendOrderEmail(id, 'payment_received')
+      } else if (action === 'mark_delivered') {
+        await transitionOrder(id, 'delivered')
+        toast.success('Order marked delivered')
       }
-      await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
-      await qc.invalidateQueries({ queryKey: ['admin', 'orders'] })
+      await refresh()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Transition failed')
+      toast.error(err instanceof Error ? err.message : 'Action failed')
     } finally {
       setBusy(false)
     }
   }
 
-  const onMarkCodPaid = async () => {
+  const confirmShip = async () => {
     if (!id) return
+    const trackingNumber = tracking.trim()
+    if (!trackingNumber) {
+      toast.error('Tracking number is required to ship')
+      return
+    }
     setBusy(true)
     try {
-      await markCodPaid(id)
-      toast.success('COD marked as paid')
-      void sendOrderEmail(id, 'payment_received')
-      await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
+      await transitionOrder(id, 'shipped', trackingNumber)
+      toast.success('Order shipped')
+      setDialog(null)
+      void sendOrderEmail(id, 'order_shipped')
+      await refresh()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not mark paid')
+      toast.error(err instanceof Error ? err.message : 'Could not ship order')
     } finally {
       setBusy(false)
     }
   }
 
-  const onMarkBankPaid = async () => {
+  const confirmCancel = async () => {
     if (!id) return
+    const reason = cancelReason.trim()
+    if (!reason) {
+      toast.error('A cancel reason is required')
+      return
+    }
     setBusy(true)
     try {
-      await markBankPaid(id)
-      toast.success('Bank transfer marked as paid')
-      void sendOrderEmail(id, 'payment_received')
-      await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
+      await transitionOrder(id, 'cancelled', null, reason)
+      toast.success('Order cancelled — stock restored')
+      setDialog(null)
+      setCancelReason('')
+      void sendOrderEmail(id, 'order_cancelled')
+      await refresh()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not mark paid')
+      toast.error(err instanceof Error ? err.message : 'Could not cancel order')
     } finally {
       setBusy(false)
     }
   }
 
-  const onRefund = async () => {
+  const confirmRefund = async () => {
     if (!id) return
     setBusy(true)
     try {
       await refundOrder(id)
-      toast.success('Refund recorded (stock restored only if you cancel)')
-      setConfirmRefund(false)
-      await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
-      await qc.invalidateQueries({ queryKey: ['admin', 'orders'] })
+      toast.success('Refund recorded')
+      setDialog(null)
+      await refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Refund failed')
     } finally {
@@ -159,77 +193,61 @@ export function AdminOrderDetailPage() {
         </Button>
         <h1 className="font-display text-2xl font-bold">{order.order_number}</h1>
         <p className="text-sm text-muted">
-          Placed {new Date(order.created_at).toLocaleString()} ·{' '}
-          {STATUS_LABELS[order.status]}
+          Placed {new Date(order.created_at).toLocaleString()}
         </p>
       </div>
 
-      <section className="rounded-(--radius-card) border border-border bg-surface p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold">Status</h2>
-        <p className="text-sm text-muted">
-          Allowed next steps from current status.
-        </p>
-        {nextStatuses.includes('shipped') ? (
-          <div className="space-y-1 max-w-md">
-            <Label htmlFor="tracking">Tracking number (required to ship)</Label>
-            <Input
-              id="tracking"
-              value={tracking}
-              onChange={(e) => setTracking(e.target.value)}
-              placeholder="Courier tracking ID"
-            />
-          </div>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          {nextStatuses.map((s) => (
-            <Button
-              key={s}
-              type="button"
-              variant={s === 'cancelled' ? 'ghost' : 'secondary'}
-              className={s === 'cancelled' ? 'text-red-800' : undefined}
-              disabled={busy}
-              onClick={() =>
-                s === 'cancelled' ? setPendingStatus('cancelled') : void runTransition(s)
-              }
-            >
-              → {STATUS_LABELS[s]}
-            </Button>
-          ))}
-          {canRefund ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-red-800"
-              disabled={busy}
-              onClick={() => setConfirmRefund(true)}
-            >
-              Refund
-            </Button>
+      <section className="rounded-(--radius-card) border border-border bg-surface p-6 space-y-5">
+        <div>
+          <h2 className="font-display text-lg font-semibold">Actions</h2>
+          <p className="mt-1 text-sm">
+            Current status:{' '}
+            <span className="font-semibold text-text">
+              {STATUS_LABELS[order.status] ?? order.status}
+            </span>
+          </p>
+          {payment ? (
+            <p className="mt-1 text-xs text-muted">
+              Payment: {payment.provider} · {payment.status} · {formatPKR(payment.amount)}
+            </p>
+          ) : null}
+          {order.payment_reference ? (
+            <p className="mt-1 text-xs text-muted">
+              Bank reference: <span className="font-mono">{order.payment_reference}</span>
+            </p>
           ) : null}
         </div>
-        {order.payment_method === 'cod' &&
-        order.status !== 'cancelled' &&
-        order.status !== 'refunded' ? (
-          <Button type="button" disabled={busy} onClick={() => void onMarkCodPaid()}>
-            Mark COD as paid
-          </Button>
-        ) : null}
-        {order.payment_method === 'bank_transfer' &&
-        order.status === 'awaiting_payment' ? (
-          <Button type="button" disabled={busy} onClick={() => void onMarkBankPaid()}>
-            Mark bank transfer as paid
-          </Button>
-        ) : null}
-        {payment ? (
-          <p className="text-xs text-muted">
-            Payment: {payment.provider} · {payment.status} · {formatPKR(payment.amount)}
-          </p>
-        ) : null}
-        {order.payment_reference ? (
-          <p className="text-xs text-muted">
-            Bank reference: <span className="font-mono">{order.payment_reference}</span>
-          </p>
-        ) : null}
+
+        <ul className="space-y-3">
+          {actions.map((action) => (
+            <li
+              key={action.id}
+              className="flex flex-col gap-1 rounded-lg border border-border/70 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-text">{action.label}</p>
+                {!action.enabled && action.disabledReason ? (
+                  <p className="mt-0.5 text-xs text-muted">{action.disabledReason}</p>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant={
+                  action.id === 'cancel' || action.id === 'refund' ? 'ghost' : 'secondary'
+                }
+                className={
+                  action.id === 'cancel' || action.id === 'refund'
+                    ? 'shrink-0 text-red-800'
+                    : 'shrink-0'
+                }
+                disabled={!action.enabled || busy}
+                onClick={() => void runAction(action.id)}
+              >
+                {action.label}
+              </Button>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="rounded-(--radius-card) border border-border bg-surface p-6">
@@ -303,25 +321,61 @@ export function AdminOrderDetailPage() {
       </section>
 
       <ConfirmDialog
-        open={pendingStatus === 'cancelled'}
-        onOpenChange={(o) => !o && setPendingStatus(null)}
-        title="Cancel order?"
-        description="Stock for line items will be restored. This cannot be undone from the admin panel."
-        confirmLabel="Cancel order"
-        destructive
+        open={dialog === 'ship'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Ship order?"
+        description={
+          <div className="space-y-3 text-left">
+            <p>Enter the courier tracking number. The customer will be emailed.</p>
+            <div className="space-y-1">
+              <Label htmlFor="ship-tracking">Tracking number</Label>
+              <Input
+                id="ship-tracking"
+                value={tracking}
+                onChange={(e) => setTracking(e.target.value)}
+                placeholder="Courier tracking ID"
+              />
+            </div>
+          </div>
+        }
+        confirmLabel="Ship"
         loading={busy}
-        onConfirm={() => runTransition('cancelled')}
+        onConfirm={() => void confirmShip()}
       />
 
       <ConfirmDialog
-        open={confirmRefund}
-        onOpenChange={(o) => !o && setConfirmRefund(false)}
-        title="Refund this order?"
-        description="Calls the payment provider, marks the payment refunded, and sets the order to refunded. Stock is restored only when an order is cancelled — not by refund alone."
+        open={dialog === 'cancel'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Cancel order?"
+        description={
+          <div className="space-y-3 text-left">
+            <p>Stock for line items will be restored. Provide a reason for the audit log.</p>
+            <div className="space-y-1">
+              <Label htmlFor="cancel-reason">Reason</Label>
+              <Input
+                id="cancel-reason"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Customer requested cancellation"
+              />
+            </div>
+          </div>
+        }
+        confirmLabel="Cancel order"
+        destructive
+        loading={busy}
+        onConfirm={() => void confirmCancel()}
+      />
+
+      <ConfirmDialog
+        open={dialog === 'refund'}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Refund this card order?"
+        description="Calls the payment provider and marks the payment refunded. Stock is restored only when you cancel — not by refund alone."
         confirmLabel="Refund"
         destructive
         loading={busy}
-        onConfirm={() => void onRefund()}
+        onConfirm={() => void confirmRefund()}
       />
     </div>
   )

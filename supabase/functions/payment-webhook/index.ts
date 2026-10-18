@@ -81,23 +81,42 @@ Deno.serve(async (req) => {
     outcome?: string
   }
 
-  // Fire-and-forget email on first successful paid webhook
-  if (!result.idempotent && verified.outcome === 'paid') {
+  // Fire-and-forget emails — never block the webhook response
+  if (!result.idempotent) {
     const { data: order } = await admin
       .from('orders')
-      .select('email, order_number, shipping_name')
+      .select('email, order_number, shipping_name, total')
       .eq('order_number', verified.orderNumber)
       .maybeSingle()
     if (order?.email) {
-      void sendTransactionalEmail(admin, {
-        idempotencyKey: `payment_received:${verified.orderNumber}`,
-        template: 'payment_received',
-        to: order.email,
-        data: {
-          orderNumber: order.order_number,
-          customerName: order.shipping_name ?? undefined,
-        },
-      })
+      const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(
+        /\/$/,
+        '',
+      )
+      if (verified.outcome === 'paid') {
+        void sendTransactionalEmail(admin, {
+          idempotencyKey: `order_confirmation:${verified.orderNumber}`,
+          template: 'order_confirmation',
+          to: order.email,
+          data: {
+            orderNumber: order.order_number,
+            customerName: order.shipping_name ?? undefined,
+            total: `PKR ${Number(order.total).toLocaleString('en-PK')}`,
+            paid: true,
+          },
+        })
+      } else if (verified.outcome === 'failed') {
+        void sendTransactionalEmail(admin, {
+          idempotencyKey: `payment_failed:${verified.orderNumber}:${verified.eventId}`,
+          template: 'payment_failed',
+          to: order.email,
+          data: {
+            orderNumber: order.order_number,
+            customerName: order.shipping_name ?? undefined,
+            retryUrl: `${appUrl}/mock-checkout?order=${encodeURIComponent(order.order_number)}`,
+          },
+        })
+      }
     }
   }
 

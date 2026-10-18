@@ -132,19 +132,34 @@ Deno.serve(async (req) => {
 
   const result = data as { idempotent?: boolean; status?: string }
 
-  if (!result.idempotent && outcome === 'paid' && order.email) {
-    void sendTransactionalEmail(admin, {
-      idempotencyKey: `payment_received:${orderNumber}`,
-      template: 'payment_received',
-      to: order.email,
-      data: {
-        orderNumber,
-        customerName: order.shipping_name ?? undefined,
-      },
-    })
+  const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(/\/$/, '')
+
+  if (!result.idempotent && order.email) {
+    if (outcome === 'paid') {
+      void sendTransactionalEmail(admin, {
+        idempotencyKey: `order_confirmation:${orderNumber}`,
+        template: 'order_confirmation',
+        to: order.email,
+        data: {
+          orderNumber,
+          customerName: order.shipping_name ?? undefined,
+          paid: true,
+        },
+      })
+    } else if (outcome === 'failed') {
+      void sendTransactionalEmail(admin, {
+        idempotencyKey: `payment_failed:${orderNumber}:${eventId}`,
+        template: 'payment_failed',
+        to: order.email,
+        data: {
+          orderNumber,
+          customerName: order.shipping_name ?? undefined,
+          retryUrl: `${appUrl}/mock-checkout?order=${encodeURIComponent(orderNumber)}`,
+        },
+      })
+    }
   }
 
-  const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(/\/$/, '')
   const redirectUrl =
     outcome === 'paid'
       ? `${appUrl}/order-confirmation/${encodeURIComponent(orderNumber)}?paid=1`

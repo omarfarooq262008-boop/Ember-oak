@@ -6,6 +6,7 @@
 export type EmailTemplateId =
   | 'order_confirmation'
   | 'payment_received'
+  | 'payment_failed'
   | 'order_shipped'
   | 'order_cancelled'
   | 'order_refunded'
@@ -21,7 +22,8 @@ export type EmailModel = {
   footerNote?: string
 }
 
-const APP_URL = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ||
+const APP_URL =
+  (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ||
   (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173')
 
 export function escapeHtml(text: string): string {
@@ -101,23 +103,30 @@ export function buildOrderEmail(
     paymentReference?: string
     contactName?: string
     contactMessage?: string
+    paid?: boolean
+    retryUrl?: string
   },
 ): { subject: string; model: EmailModel } {
   const base = APP_URL
   const trackUrl = `${base}/track-order`
   const orderLabel = escapeHtml(data.orderNumber)
+  const received = !data.paid
 
   switch (template) {
     case 'order_confirmation':
       return {
-        subject: `Order confirmed — ${data.orderNumber}`,
+        subject: received
+          ? `Order received — ${data.orderNumber}`
+          : `Order confirmed — ${data.orderNumber}`,
         model: {
-          preheader: `We've received order ${data.orderNumber}`,
-          heading: 'Order confirmed',
-          bodyHtml: `<p style="margin:0 0 12px;">Thanks${data.customerName ? `, ${escapeHtml(data.customerName)}` : ''}. We've received <strong>${orderLabel}</strong>${data.total ? ` for <strong>${escapeHtml(data.total)}</strong>` : ''}.</p>
+          preheader: received
+            ? `We've received order ${data.orderNumber}`
+            : `Order ${data.orderNumber} is confirmed`,
+          heading: received ? 'Order received' : 'Order confirmed',
+          bodyHtml: `<p style="margin:0 0 12px;">Thanks${data.customerName ? `, ${escapeHtml(data.customerName)}` : ''}. We've ${received ? 'received' : 'confirmed'} <strong>${orderLabel}</strong>${data.total ? ` for <strong>${escapeHtml(data.total)}</strong>` : ''}.</p>
             ${data.paymentReference ? `<p style="margin:0 0 12px;">Bank transfer reference: <strong>${escapeHtml(data.paymentReference)}</strong></p>` : ''}
-            <p style="margin:0;">We'll email you again when payment is confirmed or your order ships.</p>`,
-          bodyText: `Thanks. We've received order ${data.orderNumber}${data.total ? ` for ${data.total}` : ''}.${data.paymentReference ? ` Bank reference: ${data.paymentReference}.` : ''}`,
+            <p style="margin:0;">${received ? "We'll email you again when payment is confirmed or your order ships." : 'Your order is now being prepared.'}</p>`,
+          bodyText: `Thanks. We've ${received ? 'received' : 'confirmed'} order ${data.orderNumber}${data.total ? ` for ${data.total}` : ''}.${data.paymentReference ? ` Bank reference: ${data.paymentReference}.` : ''}`,
           buttonLabel: 'Track order',
           buttonUrl: trackUrl,
         },
@@ -134,6 +143,23 @@ export function buildOrderEmail(
           buttonUrl: trackUrl,
         },
       }
+    case 'payment_failed': {
+      const retry =
+        data.retryUrl ??
+        `${base}/mock-checkout?order=${encodeURIComponent(data.orderNumber)}`
+      return {
+        subject: `Payment didn't go through — ${data.orderNumber}`,
+        model: {
+          preheader: `Payment for ${data.orderNumber} did not complete`,
+          heading: "Payment didn't go through",
+          bodyHtml: `<p style="margin:0 0 12px;">We couldn't confirm payment for <strong>${orderLabel}</strong>.</p>
+            <p style="margin:0;">You can try again using the button below. Your items stay reserved for a short time.</p>`,
+          bodyText: `Payment for ${data.orderNumber} did not go through. Retry: ${retry}`,
+          buttonLabel: 'Retry payment',
+          buttonUrl: retry,
+        },
+      }
+    }
     case 'order_shipped':
       return {
         subject: `Shipped — ${data.orderNumber}`,
@@ -196,10 +222,15 @@ export const EMAIL_PREVIEW_SAMPLES: Record<
     customerName: 'Ayesha Khan',
     total: 'PKR 12,500',
     paymentReference: 'BT-SAMPLE123',
+    paid: false,
   },
   payment_received: {
     orderNumber: 'EO-SAMPLE123',
     customerName: 'Ayesha Khan',
+  },
+  payment_failed: {
+    orderNumber: 'EO-SAMPLE123',
+    retryUrl: `${APP_URL}/mock-checkout?order=EO-SAMPLE123`,
   },
   order_shipped: {
     orderNumber: 'EO-SAMPLE123',

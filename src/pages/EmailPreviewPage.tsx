@@ -12,6 +12,7 @@ import {
 const TEMPLATES: EmailTemplateId[] = [
   'order_confirmation',
   'payment_received',
+  'payment_failed',
   'order_shipped',
   'order_cancelled',
   'order_refunded',

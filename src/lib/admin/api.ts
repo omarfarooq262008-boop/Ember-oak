@@ -647,11 +647,13 @@ export async function transitionOrder(
   orderId: string,
   newStatus: OrderStatus,
   trackingNumber?: string | null,
+  reason?: string | null,
 ): Promise<void> {
   await adminRpc('admin_transition_order_status', {
     p_order_id: orderId,
     p_new_status: newStatus,
     p_tracking_number: trackingNumber ?? null,
+    p_reason: reason ?? null,
   })
 }
 
@@ -689,6 +691,7 @@ export async function sendOrderEmail(
   template:
     | 'order_confirmation'
     | 'payment_received'
+    | 'payment_failed'
     | 'order_shipped'
     | 'order_cancelled'
     | 'order_refunded',
@@ -700,6 +703,32 @@ export async function sendOrderEmail(
     })
   } catch {
     /* never block status changes */
+  }
+}
+
+/** Retry a failed outbox row — never throws to block the UI caller path beyond AdminApiError. */
+export async function retryFailedEmail(outboxId: string): Promise<void> {
+  const client = requireClient()
+  const { data, error } = await client.functions.invoke('send-order-email', {
+    body: { outboxId },
+  })
+  if (error) {
+    const ctx = error as { context?: Response; message?: string }
+    try {
+      const body = ctx.context ? await ctx.context.json() : null
+      if (body?.error) throw new AdminApiError(String(body.error))
+    } catch (e) {
+      if (e instanceof AdminApiError) throw e
+    }
+    throw new AdminApiError(error.message || 'Retry failed')
+  }
+  if ((data as { error?: string; ok?: boolean } | null)?.error) {
+    throw new AdminApiError((data as { error: string }).error)
+  }
+  if ((data as { ok?: boolean } | null)?.ok === false) {
+    throw new AdminApiError(
+      (data as { error?: string }).error || 'Email send failed again',
+    )
   }
 }
 

@@ -34,4 +34,26 @@ describe('email templates', () => {
     expect(text).toContain('TRACK-1')
     expect(text).toContain('Track order:')
   })
+
+  it('uses Order received vs Order confirmed based on paid flag', () => {
+    const received = buildOrderEmail('order_confirmation', {
+      orderNumber: 'EO-1',
+      paid: false,
+    })
+    expect(received.model.heading).toBe('Order received')
+    const confirmed = buildOrderEmail('order_confirmation', {
+      orderNumber: 'EO-1',
+      paid: true,
+    })
+    expect(confirmed.model.heading).toBe('Order confirmed')
+  })
+
+  it('payment_failed includes retry link', () => {
+    const { model } = buildOrderEmail('payment_failed', {
+      orderNumber: 'EO-1',
+      retryUrl: 'http://localhost:5173/mock-checkout?order=EO-1',
+    })
+    expect(model.heading).toBe("Payment didn't go through")
+    expect(model.buttonUrl).toContain('mock-checkout')
+  })
 })

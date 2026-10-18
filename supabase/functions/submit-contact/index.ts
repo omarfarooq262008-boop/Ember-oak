@@ -91,11 +91,20 @@ Deno.serve(async (req) => {
     return json({ error: 'Could not save message' }, 500)
   }
 
-  const notifyTo =
-    Deno.env.get('STORE_NOTIFY_EMAIL') ??
-    Deno.env.get('EMAIL_FROM')?.match(/<([^>]+)>/)?.[1] ??
-    null
-  if (notifyTo && notifyTo.includes('@') && inserted?.id) {
+  // Contact notifications go only to STORE_NOTIFY_EMAIL (never guess from EMAIL_FROM).
+  const notifyTo = (Deno.env.get('STORE_NOTIFY_EMAIL') ?? '').trim()
+  if (!notifyTo || !notifyTo.includes('@')) {
+    await admin.from('app_events').insert({
+      event_type: 'email_send_failed',
+      payload: {
+        template: 'contact_notification',
+        error:
+          'STORE_NOTIFY_EMAIL secret is missing or invalid — contact message saved but no email was sent',
+        contactMessageId: inserted?.id ?? null,
+      },
+      ip,
+    })
+  } else if (inserted?.id) {
     void sendTransactionalEmail(admin, {
       idempotencyKey: `contact_notification:${inserted.id}`,
       template: 'contact_notification',
