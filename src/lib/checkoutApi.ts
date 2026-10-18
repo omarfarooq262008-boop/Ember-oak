@@ -25,6 +25,8 @@ export type CreateOrderResult =
       total: number
       trackingToken: string
       idempotent?: boolean
+      checkoutUrl?: string | null
+      paymentReference?: string | null
     }
   | { ok: false; message: string; status?: number }
 
@@ -70,6 +72,8 @@ export async function createOrderRemote(
     total?: number
     trackingToken?: string
     idempotent?: boolean
+    checkoutUrl?: string | null
+    paymentReference?: string | null
   } | null
 
   if (!body || body.error || !body.orderNumber || !body.trackingToken) {
@@ -86,6 +90,8 @@ export async function createOrderRemote(
     total: Number(body.total ?? 0),
     trackingToken: body.trackingToken,
     idempotent: body.idempotent,
+    checkoutUrl: body.checkoutUrl ?? null,
+    paymentReference: body.paymentReference ?? null,
   }
 }
 

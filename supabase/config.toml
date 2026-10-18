@@ -15,3 +15,9 @@ verify_jwt = false
 
 [functions.track-order]
 verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false
+
+[functions.mock-sign-payment]
+verify_jwt = false

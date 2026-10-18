@@ -568,6 +568,7 @@ export type AdminOrderDetail = AdminOrderRow & {
   shipping_province: string
   shipping_postal: string | null
   tracking_number: string | null
+  payment_reference: string | null
   updated_at: string
   order_items: Array<{
     id: string
@@ -590,7 +591,8 @@ export async function getOrder(id: string): Promise<AdminOrderDetail | null> {
       id, order_number, email, phone, status, payment_method,
       subtotal, discount, delivery_fee, total, discount_code,
       shipping_name, shipping_phone, shipping_address, shipping_city,
-      shipping_province, shipping_postal, tracking_number, created_at, updated_at,
+      shipping_province, shipping_postal, tracking_number, payment_reference,
+      created_at, updated_at,
       order_items ( id, product_name, variant_label, sku, unit_price, quantity, line_total ),
       payments ( id, status, provider, amount )
     `,
@@ -615,6 +617,7 @@ export async function getOrder(id: string): Promise<AdminOrderDetail | null> {
     shipping_province: row.shipping_province as string,
     shipping_postal: row.shipping_postal as string | null,
     tracking_number: row.tracking_number as string | null,
+    payment_reference: (row.payment_reference as string | null) ?? null,
     updated_at: row.updated_at as string,
     order_items: ((row.order_items as unknown[]) ?? []).map((i) => {
       const item = i as Record<string, unknown>
@@ -654,6 +657,50 @@ export async function transitionOrder(
 
 export async function markCodPaid(orderId: string): Promise<void> {
   await adminRpc('admin_mark_cod_paid', { p_order_id: orderId })
+}
+
+export async function markBankPaid(orderId: string): Promise<void> {
+  await adminRpc('admin_mark_bank_paid', { p_order_id: orderId })
+}
+
+export async function refundOrder(orderId: string): Promise<void> {
+  const client = requireClient()
+  const { data, error } = await client.functions.invoke('admin-refund', {
+    body: { orderId },
+  })
+  if (error) {
+    const ctx = error as { context?: Response; message?: string }
+    try {
+      const body = ctx.context ? await ctx.context.json() : null
+      if (body?.error) throw new AdminApiError(String(body.error))
+    } catch (e) {
+      if (e instanceof AdminApiError) throw e
+    }
+    throw new AdminApiError(error.message || 'Refund failed')
+  }
+  if ((data as { error?: string } | null)?.error) {
+    throw new AdminApiError((data as { error: string }).error)
+  }
+}
+
+/** Fire-and-forget order email — failures must not block admin UI. */
+export async function sendOrderEmail(
+  orderId: string,
+  template:
+    | 'order_confirmation'
+    | 'payment_received'
+    | 'order_shipped'
+    | 'order_cancelled'
+    | 'order_refunded',
+): Promise<void> {
+  const client = requireClient()
+  try {
+    await client.functions.invoke('send-order-email', {
+      body: { orderId, template },
+    })
+  } catch {
+    /* never block status changes */
+  }
 }
 
 export type DashboardStats = {

@@ -18,7 +18,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   getOrder,
   isSupabaseConfigured,
+  markBankPaid,
   markCodPaid,
+  refundOrder,
+  sendOrderEmail,
   transitionOrder,
 } from '@/lib/admin/api'
 import { allowedNextStatuses, STATUS_LABELS } from '@/lib/admin/orderStatus'
@@ -30,6 +33,7 @@ export function AdminOrderDetailPage() {
   const qc = useQueryClient()
   const [tracking, setTracking] = useState('')
   const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null)
+  const [confirmRefund, setConfirmRefund] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const { data: order, isLoading, isError, refetch } = useQuery({
@@ -44,8 +48,15 @@ export function AdminOrderDetailPage() {
     }
   }, [order?.tracking_number])
 
-  const nextStatuses = order ? allowedNextStatuses(order.status) : []
+  const nextStatuses = order
+    ? allowedNextStatuses(order.status).filter((s) => s !== 'refunded')
+    : []
   const payment = order?.payments[0]
+  const canRefund =
+    order &&
+    order.status !== 'cancelled' &&
+    order.status !== 'refunded' &&
+    allowedNextStatuses(order.status).includes('refunded')
 
   const runTransition = async (status: OrderStatus) => {
     if (!id) return
@@ -58,6 +69,11 @@ export function AdminOrderDetailPage() {
       )
       toast.success(`Status updated to ${STATUS_LABELS[status]}`)
       setPendingStatus(null)
+      if (status === 'shipped') {
+        void sendOrderEmail(id, 'order_shipped')
+      } else if (status === 'cancelled') {
+        void sendOrderEmail(id, 'order_cancelled')
+      }
       await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
       await qc.invalidateQueries({ queryKey: ['admin', 'orders'] })
     } catch (err) {
@@ -73,9 +89,41 @@ export function AdminOrderDetailPage() {
     try {
       await markCodPaid(id)
       toast.success('COD marked as paid')
+      void sendOrderEmail(id, 'payment_received')
       await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not mark paid')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onMarkBankPaid = async () => {
+    if (!id) return
+    setBusy(true)
+    try {
+      await markBankPaid(id)
+      toast.success('Bank transfer marked as paid')
+      void sendOrderEmail(id, 'payment_received')
+      await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not mark paid')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onRefund = async () => {
+    if (!id) return
+    setBusy(true)
+    try {
+      await refundOrder(id)
+      toast.success('Refund recorded (stock restored only if you cancel)')
+      setConfirmRefund(false)
+      await qc.invalidateQueries({ queryKey: ['admin', 'order', id] })
+      await qc.invalidateQueries({ queryKey: ['admin', 'orders'] })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Refund failed')
     } finally {
       setBusy(false)
     }
@@ -147,6 +195,17 @@ export function AdminOrderDetailPage() {
               → {STATUS_LABELS[s]}
             </Button>
           ))}
+          {canRefund ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-red-800"
+              disabled={busy}
+              onClick={() => setConfirmRefund(true)}
+            >
+              Refund
+            </Button>
+          ) : null}
         </div>
         {order.payment_method === 'cod' &&
         order.status !== 'cancelled' &&
@@ -155,9 +214,20 @@ export function AdminOrderDetailPage() {
             Mark COD as paid
           </Button>
         ) : null}
+        {order.payment_method === 'bank_transfer' &&
+        order.status === 'awaiting_payment' ? (
+          <Button type="button" disabled={busy} onClick={() => void onMarkBankPaid()}>
+            Mark bank transfer as paid
+          </Button>
+        ) : null}
         {payment ? (
           <p className="text-xs text-muted">
             Payment: {payment.provider} · {payment.status} · {formatPKR(payment.amount)}
+          </p>
+        ) : null}
+        {order.payment_reference ? (
+          <p className="text-xs text-muted">
+            Bank reference: <span className="font-mono">{order.payment_reference}</span>
           </p>
         ) : null}
       </section>
@@ -241,6 +311,17 @@ export function AdminOrderDetailPage() {
         destructive
         loading={busy}
         onConfirm={() => runTransition('cancelled')}
+      />
+
+      <ConfirmDialog
+        open={confirmRefund}
+        onOpenChange={(o) => !o && setConfirmRefund(false)}
+        title="Refund this order?"
+        description="Calls the payment provider, marks the payment refunded, and sets the order to refunded. Stock is restored only when an order is cancelled — not by refund alone."
+        confirmLabel="Refund"
+        destructive
+        loading={busy}
+        onConfirm={() => void onRefund()}
       />
     </div>
   )

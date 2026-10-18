@@ -1,5 +1,5 @@
 import { CheckCircle2Icon } from 'lucide-react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
@@ -14,9 +14,10 @@ type ConfirmationState = {
   trackingToken?: string
   email?: string
   paymentMethod?: PaymentMethod
+  paymentReference?: string | null
 }
 
-function nextSteps(method: PaymentMethod): string[] {
+function nextSteps(method: PaymentMethod, paid: boolean): string[] {
   switch (method) {
     case 'cod':
       return [
@@ -26,16 +27,22 @@ function nextSteps(method: PaymentMethod): string[] {
       ]
     case 'bank_transfer':
       return [
-        'Transfer the exact order total using the bank details from checkout.',
+        'Transfer the exact order total using the bank details below.',
         store.payments.bankTransfer.instructions,
+        'Include your unique payment reference so we can match your transfer.',
         'We will confirm payment and ship within about 1 working day.',
       ]
     case 'card':
-      return [
-        'Your card payment is pending (demo mock provider).',
-        'The order stays unpaid until a real payment provider confirms it — never from the browser.',
-        'We will dispatch as soon as payment clears.',
-      ]
+      return paid
+        ? [
+            'Payment confirmed. We are preparing your order for dispatch.',
+            `Delivery in ${store.delivery.workingDaysMin}–${store.delivery.workingDaysMax} working days after dispatch.`,
+          ]
+        : [
+            'Your card payment is pending until the payment provider confirms it.',
+            'The order is never marked paid from the browser alone.',
+            'We will email you when payment clears.',
+          ]
     default:
       return ['We will email you with updates.']
   }
@@ -44,14 +51,18 @@ function nextSteps(method: PaymentMethod): string[] {
 export function OrderConfirmationPage() {
   const { orderNumber: paramNumber = '' } = useParams<{ orderNumber: string }>()
   const location = useLocation()
+  const [search] = useSearchParams()
   const state = (location.state as ConfirmationState | null) ?? {}
+  const paid = search.get('paid') === '1'
 
   const displayNumber = state.orderNumber ?? paramNumber
-  const paymentMethod = state.paymentMethod ?? 'cod'
+  const paymentMethod = state.paymentMethod ?? (paid ? 'card' : 'cod')
   const total = state.total
   const email = state.email
   const trackingToken = state.trackingToken
-  const steps = nextSteps(paymentMethod)
+  const paymentReference = state.paymentReference
+  const steps = nextSteps(paymentMethod, paid)
+  const { bankTransfer } = store.payments
 
   const trackHref = trackingToken
     ? `/track-order?token=${encodeURIComponent(trackingToken)}`
@@ -63,8 +74,10 @@ export function OrderConfirmationPage() {
 
       <div className="section-pad container-eo mx-auto max-w-xl text-center">
         <CheckCircle2Icon className="mx-auto size-12 text-success" aria-hidden />
-        <h1 className="mt-4 text-3xl">Thank you</h1>
-        <p className="mt-2 text-muted">Your order has been placed.</p>
+        <h1 className="mt-4 text-3xl">{paid ? 'Payment received' : 'Thank you'}</h1>
+        <p className="mt-2 text-muted">
+          {paid ? 'Your order is confirmed and paid.' : 'Your order has been placed.'}
+        </p>
 
         <div className="mt-8 rounded-(--radius-card) border border-border bg-surface p-6 text-left">
           <p className="text-sm text-muted">Order number</p>
@@ -74,12 +87,31 @@ export function OrderConfirmationPage() {
               Total: <span className="font-medium tabular-nums">{formatPKR(total)}</span>
             </p>
           ) : null}
-          {state.status === 'pending_payment' ? (
-            <p className="mt-2 text-sm text-muted">
-              Status: pending payment (card mock — not marked paid from the browser).
-            </p>
+          {state.status === 'pending_payment' && !paid ? (
+            <p className="mt-2 text-sm text-muted">Status: pending payment</p>
           ) : null}
         </div>
+
+        {paymentMethod === 'bank_transfer' ? (
+          <div className="mt-6 rounded-(--radius-card) border border-border bg-surface p-6 text-left text-sm">
+            <h2 className="font-display text-lg font-semibold">Bank transfer details</h2>
+            <p className="mt-3 font-medium text-text">{bankTransfer.bankName}</p>
+            <p>Account: {bankTransfer.accountTitle}</p>
+            <p className="tabular-nums">A/C {bankTransfer.accountNumber}</p>
+            <p className="tabular-nums">IBAN {bankTransfer.iban}</p>
+            {paymentReference ? (
+              <p className="mt-4">
+                Your unique reference:{' '}
+                <span className="font-mono font-semibold text-text">{paymentReference}</span>
+              </p>
+            ) : (
+              <p className="mt-4 text-muted">
+                Use your order number as the transfer reference if no unique reference was shown.
+              </p>
+            )}
+            <p className="mt-3 text-muted">{bankTransfer.instructions}</p>
+          </div>
+        ) : null}
 
         <div className="mt-8 text-left">
           <h2 className="text-lg">What happens next</h2>
@@ -91,14 +123,14 @@ export function OrderConfirmationPage() {
         </div>
 
         <p className="mt-8 text-sm text-muted">
-          Keep this order number. Confirmation emails will be wired in a later step
+          Keep this order number. A confirmation email
           {email ? (
             <>
               {' '}
-              for <span className="font-medium text-text">{email}</span>
+              will be sent to <span className="font-medium text-text">{email}</span>
             </>
-          ) : null}
-          .
+          ) : null}{' '}
+          when delivery is configured.
         </p>
 
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">

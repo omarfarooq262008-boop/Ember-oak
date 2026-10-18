@@ -12,7 +12,9 @@ import { CollectionsIndexPage } from '@/pages/CollectionsIndexPage'
 import { ContactPage } from '@/pages/ContactPage'
 import { FaqPage } from '@/pages/FaqPage'
 import { HomePage } from '@/pages/HomePage'
+import { EmailPreviewPage } from '@/pages/EmailPreviewPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { MockCheckoutPage } from '@/pages/MockCheckoutPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { OrderConfirmationPage } from '@/pages/OrderConfirmationPage'
 import { OrderTrackingPage } from '@/pages/OrderTrackingPage'
@@ -50,9 +52,11 @@ const router = createBrowserRouter([
       { path: 'collections/:slug', element: <CollectionPage /> },
       { path: 'cart', element: <CartPage /> },
       { path: 'checkout', element: <CheckoutPage /> },
+      { path: 'mock-checkout', element: <MockCheckoutPage /> },
       { path: 'order-confirmation/:orderNumber', element: <OrderConfirmationPage /> },
       { path: 'order-confirmation', element: <OrderConfirmationPage /> },
       { path: 'track-order', element: <OrderTrackingPage /> },
+      { path: 'email-preview', element: <EmailPreviewPage /> },
       { path: 'about', element: <AboutPage /> },
       { path: 'contact', element: <ContactPage /> },
       { path: 'shipping', element: <ShippingPage /> },

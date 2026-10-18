@@ -187,6 +187,12 @@ export function CheckoutPage() {
     }
 
     clear()
+
+    if (form.paymentMethod === 'card' && result.checkoutUrl) {
+      window.location.assign(result.checkoutUrl)
+      return
+    }
+
     navigate(`/order-confirmation/${result.orderNumber}`, {
       state: {
         orderNumber: result.orderNumber,
@@ -195,6 +201,7 @@ export function CheckoutPage() {
         trackingToken: result.trackingToken,
         email: form.email.trim(),
         paymentMethod: form.paymentMethod,
+        paymentReference: result.paymentReference ?? null,
       },
       replace: true,
     })

@@ -23,7 +23,7 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
 const ALLOWED: Record<string, OrderStatus[]> = {
   pending_payment: ['awaiting_payment', 'awaiting_fulfilment', 'cancelled'],
   awaiting_payment: ['awaiting_fulfilment', 'cancelled', 'refunded'],
-  awaiting_fulfilment: ['shipped', 'cancelled'],
+  awaiting_fulfilment: ['shipped', 'cancelled', 'refunded'],
   shipped: ['delivered', 'refunded'],
   delivered: ['refunded'],
 }

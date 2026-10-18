@@ -1,9 +1,10 @@
 /**
  * submit-contact — rate-limited contact form with honeypot.
- * Secrets only from Deno.env.
+ * Secrets only from Deno.env. Email failures never block the response.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
+import { sendTransactionalEmail } from '../_shared/email.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,15 +76,36 @@ Deno.serve(async (req) => {
     ? `Order number: ${orderRef}\n\n${parsed.data.message.trim()}`
     : parsed.data.message.trim()
 
-  const { error } = await admin.from('contact_messages').insert({
-    name: parsed.data.name.trim(),
-    email: parsed.data.email.trim().toLowerCase(),
-    phone: parsed.data.phone?.trim() || null,
-    message: body,
-  })
+  const { data: inserted, error } = await admin
+    .from('contact_messages')
+    .insert({
+      name: parsed.data.name.trim(),
+      email: parsed.data.email.trim().toLowerCase(),
+      phone: parsed.data.phone?.trim() || null,
+      message: body,
+    })
+    .select('id')
+    .maybeSingle()
 
   if (error) {
     return json({ error: 'Could not save message' }, 500)
+  }
+
+  const notifyTo =
+    Deno.env.get('STORE_NOTIFY_EMAIL') ??
+    Deno.env.get('EMAIL_FROM')?.match(/<([^>]+)>/)?.[1] ??
+    null
+  if (notifyTo && notifyTo.includes('@') && inserted?.id) {
+    void sendTransactionalEmail(admin, {
+      idempotencyKey: `contact_notification:${inserted.id}`,
+      template: 'contact_notification',
+      to: notifyTo,
+      data: {
+        orderNumber: 'n/a',
+        contactName: parsed.data.name.trim(),
+        contactMessage: body,
+      },
+    })
   }
 
   return json({ ok: true })

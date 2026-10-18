@@ -35,8 +35,13 @@ describe('order status transitions', () => {
   })
 
   it('awaiting_fulfilment transitions', () => {
-    expect(allowedNextStatuses('awaiting_fulfilment')).toEqual(['shipped', 'cancelled'])
+    expect(allowedNextStatuses('awaiting_fulfilment')).toEqual([
+      'shipped',
+      'cancelled',
+      'refunded',
+    ])
     expect(isTransitionAllowed('awaiting_fulfilment', 'shipped')).toBe(true)
+    expect(isTransitionAllowed('awaiting_fulfilment', 'refunded')).toBe(true)
     expect(isTransitionAllowed('awaiting_fulfilment', 'delivered')).toBe(false)
   })
 

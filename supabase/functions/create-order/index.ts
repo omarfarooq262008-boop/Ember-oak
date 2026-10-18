@@ -1,15 +1,13 @@
 /**
  * create-order — Zod validation + IP rate limit, then create_order_atomic via service role.
+ * Card orders return a checkoutUrl from the payment provider layer.
  * Never trusts browser prices. Secrets only from Deno.env.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-idempotency-key',
-}
+import { corsHeaders, json } from '../_shared/cors.ts'
+import { getPaymentProvider } from '../_shared/payments.ts'
+import { sendTransactionalEmail } from '../_shared/email.ts'
 
 const LineSchema = z.object({
   variantId: z.string().uuid(),
@@ -41,13 +39,6 @@ const BodySchema = z.object({
   idempotencyKey: z.string().min(8).max(128),
   userId: z.string().uuid().optional().nullable(),
 })
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
 
 function mapRpcError(message: string): { status: number; error: string } {
   if (message.includes('INSUFFICIENT_STOCK:')) {
@@ -134,7 +125,6 @@ Deno.serve(async (req) => {
       return json({ error: 'Too many requests. Please wait a moment.' }, 429)
     }
 
-    // Bind order to logged-in user when a valid JWT is present
     let userId: string | null = null
     const authHeader = req.headers.get('Authorization')
     if (authHeader?.startsWith('Bearer ')) {
@@ -170,11 +160,54 @@ Deno.serve(async (req) => {
     }
 
     const result = data as {
+      order_id: string
       order_number: string
       status: string
       total: number
       tracking_token: string
       idempotent?: boolean
+    }
+
+    const { data: orderRow } = await admin
+      .from('orders')
+      .select('payment_reference, shipping_name')
+      .eq('id', result.order_id)
+      .maybeSingle()
+
+    let checkoutUrl: string | null = null
+    if (body.paymentMethod === 'card') {
+      try {
+        const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(
+          /\/$/,
+          '',
+        )
+        const provider = getPaymentProvider()
+        const checkout = await provider.createCheckout({
+          orderId: result.order_id,
+          orderNumber: result.order_number,
+          amount: Number(result.total),
+          currency: 'PKR',
+          customerEmail: body.email,
+          successUrl: `${appUrl}/order-confirmation/${encodeURIComponent(result.order_number)}?paid=1`,
+          cancelUrl: `${appUrl}/checkout?payment=cancelled`,
+        })
+        checkoutUrl = checkout.checkoutUrl
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'checkout failed'
+        await admin.from('app_events').insert({
+          event_type: 'checkout_url_failed',
+          payload: { orderNumber: result.order_number, error: msg },
+          ip,
+        })
+        return json(
+          {
+            error:
+              'Order was created but card checkout is unavailable. Contact support with your order number.',
+            orderNumber: result.order_number,
+          },
+          502,
+        )
+      }
     }
 
     await admin.from('app_events').insert({
@@ -183,9 +216,25 @@ Deno.serve(async (req) => {
         orderNumber: result.order_number,
         total: result.total,
         idempotent: result.idempotent ?? false,
+        paymentMethod: body.paymentMethod,
       },
       ip,
     })
+
+    // Non-blocking confirmation email
+    if (!(result.idempotent ?? false)) {
+      void sendTransactionalEmail(admin, {
+        idempotencyKey: `order_confirmation:${result.order_number}`,
+        template: 'order_confirmation',
+        to: body.email,
+        data: {
+          orderNumber: result.order_number,
+          customerName: body.shipping.name,
+          total: `PKR ${Number(result.total).toLocaleString('en-PK')}`,
+          paymentReference: orderRow?.payment_reference ?? undefined,
+        },
+      })
+    }
 
     return json({
       orderNumber: result.order_number,
@@ -193,6 +242,8 @@ Deno.serve(async (req) => {
       total: result.total,
       trackingToken: result.tracking_token,
       idempotent: result.idempotent ?? false,
+      checkoutUrl,
+      paymentReference: orderRow?.payment_reference ?? null,
     })
   } catch (e) {
     console.error(e)
