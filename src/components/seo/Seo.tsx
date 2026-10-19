@@ -8,6 +8,7 @@ type SeoProps = {
   image?: string
   url?: string
   type?: 'website' | 'product' | 'article'
+  noindex?: boolean
 }
 
 function upsertMeta(
@@ -33,6 +34,7 @@ function Seo({
   image,
   url,
   type = 'website',
+  noindex = false,
 }: SeoProps) {
   useEffect(() => {
     const siteName = store.name
@@ -63,7 +65,19 @@ function Seo({
     }
 
     upsertMeta('twitter:card', 'summary_large_image')
-  }, [title, description, image, url, type])
+
+    if (noindex) {
+      upsertMeta('robots', 'noindex, nofollow')
+    } else {
+      document.head.querySelector('meta[name="robots"]')?.remove()
+    }
+
+    return () => {
+      if (noindex) {
+        document.head.querySelector('meta[name="robots"]')?.remove()
+      }
+    }
+  }, [title, description, image, url, type, noindex])
 
   return null
 }

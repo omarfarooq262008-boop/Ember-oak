@@ -1,4 +1,7 @@
 User-agent: *
+Disallow: /admin
+Disallow: /admin/
+Disallow: /mock-checkout
 Allow: /
 
 Sitemap: https://emberandoak.pk/sitemap.xml

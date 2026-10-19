@@ -101,7 +101,9 @@ export const store = {
   },
 
   seo: {
-    siteUrl: 'https://emberandoak.pk',
+    siteUrl:
+      (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') ||
+      'https://emberandoak.pk',
     defaultOgImage: '/og-default.jpg',
   },
 

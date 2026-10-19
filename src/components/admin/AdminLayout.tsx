@@ -15,6 +15,7 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
+import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -90,6 +91,7 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background md:flex-row">
+      <Seo title={`Admin — ${current}`} noindex />
       <aside className="hidden w-64 shrink-0 border-r border-border bg-surface md:flex md:flex-col">
         <div className="border-b border-border px-4 py-5">
           <p className="font-display text-lg font-bold text-text">Admin</p>

@@ -86,7 +86,7 @@ export function MockCheckoutPage() {
 
   return (
     <>
-      <Seo title="Mock checkout" description="Demo payment page — not a real card form." />
+      <Seo title="Mock checkout" description="Demo payment page — not a real card form." noindex />
       <div className="section-pad container-eo mx-auto max-w-md">
         <p className="text-xs font-semibold uppercase tracking-wider text-accent">
           Mock payment provider

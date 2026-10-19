@@ -24,6 +24,7 @@ export type EmailModel = {
 
 const APP_URL =
   (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ||
+  (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') ||
   (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173')
 
 export function escapeHtml(text: string): string {
