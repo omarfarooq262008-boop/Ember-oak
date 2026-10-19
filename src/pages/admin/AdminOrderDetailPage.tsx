@@ -324,48 +324,42 @@ export function AdminOrderDetailPage() {
         open={dialog === 'ship'}
         onOpenChange={(o) => !o && setDialog(null)}
         title="Ship order?"
-        description={
-          <div className="space-y-3 text-left">
-            <p>Enter the courier tracking number. The customer will be emailed.</p>
-            <div className="space-y-1">
-              <Label htmlFor="ship-tracking">Tracking number</Label>
-              <Input
-                id="ship-tracking"
-                value={tracking}
-                onChange={(e) => setTracking(e.target.value)}
-                placeholder="Courier tracking ID"
-              />
-            </div>
-          </div>
-        }
+        description="Enter the courier tracking number. The customer will be emailed."
         confirmLabel="Ship"
         loading={busy}
         onConfirm={() => void confirmShip()}
-      />
+      >
+        <div className="space-y-1">
+          <Label htmlFor="ship-tracking">Tracking number</Label>
+          <Input
+            id="ship-tracking"
+            value={tracking}
+            onChange={(e) => setTracking(e.target.value)}
+            placeholder="Courier tracking ID"
+          />
+        </div>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={dialog === 'cancel'}
         onOpenChange={(o) => !o && setDialog(null)}
         title="Cancel order?"
-        description={
-          <div className="space-y-3 text-left">
-            <p>Stock for line items will be restored. Provide a reason for the audit log.</p>
-            <div className="space-y-1">
-              <Label htmlFor="cancel-reason">Reason</Label>
-              <Input
-                id="cancel-reason"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="e.g. Customer requested cancellation"
-              />
-            </div>
-          </div>
-        }
+        description="Stock for line items will be restored. Provide a reason for the audit log."
         confirmLabel="Cancel order"
         destructive
         loading={busy}
         onConfirm={() => void confirmCancel()}
-      />
+      >
+        <div className="space-y-1">
+          <Label htmlFor="cancel-reason">Reason</Label>
+          <Input
+            id="cancel-reason"
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="e.g. Customer requested cancellation"
+          />
+        </div>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={dialog === 'refund'}

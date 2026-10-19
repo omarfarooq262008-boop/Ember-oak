@@ -15,6 +15,7 @@ type ConfirmDialogProps = {
   onOpenChange: (open: boolean) => void
   title: string
   description?: ReactNode
+  children?: ReactNode
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
@@ -27,6 +28,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  children,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   destructive = false,
@@ -44,6 +46,7 @@ export function ConfirmDialog({
             </DialogDescription>
           ) : null}
         </DialogHeader>
+        {children ? <div className="space-y-3">{children}</div> : null}
         <DialogFooter>
           <Button
             type="button"
