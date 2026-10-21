@@ -19,6 +19,8 @@ export const RATE_LIMITS = {
   'payment-webhook': { limit: 60, windowSeconds: 60 },
   /** Mock checkout signer — 20 per 10 minutes per IP */
   'mock-sign-payment': { limit: 20, windowSeconds: 600 },
+  /** Health / uptime probes — 60 per minute per IP */
+  health: { limit: 60, windowSeconds: 60 },
 } as const
 
 export type RateLimitKey = keyof typeof RATE_LIMITS

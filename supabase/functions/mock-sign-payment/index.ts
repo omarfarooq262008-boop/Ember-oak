@@ -106,6 +106,14 @@ Deno.serve(async (req) => {
 
   const appUrl = (Deno.env.get('APP_URL') ?? 'http://localhost:5173').replace(/\/$/, '')
 
+  if (!result.idempotent && outcome === 'failed') {
+    void admin.from('app_events').insert({
+      event_type: 'payment_failed',
+      payload: { orderNumber, provider: 'mock' },
+      ip,
+    })
+  }
+
   if (!result.idempotent && order.email) {
     if (outcome === 'paid') {
       void sendTransactionalEmail(admin, {

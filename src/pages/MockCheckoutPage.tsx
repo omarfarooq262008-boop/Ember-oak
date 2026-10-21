@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { formatPKR } from '@/lib/format'
+import { setSentryOrderStage } from '@/lib/sentry/tags'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 /**
@@ -15,6 +16,10 @@ export function MockCheckoutPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const [busy, setBusy] = useState<'paid' | 'failed' | 'cancelled' | null>(null)
+
+  useEffect(() => {
+    setSentryOrderStage('mock_payment')
+  }, [])
 
   const orderNumber = params.get('order') ?? ''
   const amount = Number(params.get('amount') ?? 0)

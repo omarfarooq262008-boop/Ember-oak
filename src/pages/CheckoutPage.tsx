@@ -20,6 +20,7 @@ import {
 } from '@/lib/checkoutValidation'
 import { formatPKR } from '@/lib/format'
 import { getCitiesForProvince, pakistanProvinces } from '@/lib/pakistan'
+import { setSentryOrderStage } from '@/lib/sentry/tags'
 
 export function CheckoutPage() {
   const navigate = useNavigate()
@@ -56,6 +57,10 @@ export function CheckoutPage() {
     cardCvc: '',
   })
   const [errors, setErrors] = useState<FormErrors>({})
+
+  useEffect(() => {
+    setSentryOrderStage('checkout_form')
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -95,6 +100,7 @@ export function CheckoutPage() {
 
     setSubmitting(true)
     setSubmitError(null)
+    setSentryOrderStage('placing_order')
 
     const result = await createOrderRemote({
       email: form.email.trim(),
@@ -119,6 +125,7 @@ export function CheckoutPage() {
     setSubmitting(false)
 
     if (!result.ok) {
+      setSentryOrderStage('checkout_form')
       setSubmitError(result.message)
       toast.error(result.message)
       // New key only when not a transient double-submit of the same successful order
@@ -131,10 +138,12 @@ export function CheckoutPage() {
     clear()
 
     if (form.paymentMethod === 'card' && result.checkoutUrl) {
+      setSentryOrderStage('redirecting_to_payment')
       window.location.assign(result.checkoutUrl)
       return
     }
 
+    setSentryOrderStage('order_confirmation')
     navigate(`/order-confirmation/${result.orderNumber}`, {
       state: {
         orderNumber: result.orderNumber,

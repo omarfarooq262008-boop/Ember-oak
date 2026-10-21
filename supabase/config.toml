@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.mock-sign-payment]
 verify_jwt = false
+
+[functions.health]
+verify_jwt = false

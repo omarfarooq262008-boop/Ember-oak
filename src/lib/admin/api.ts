@@ -1050,13 +1050,20 @@ export type AppEventRow = {
   created_at: string
 }
 
-export async function listAppEvents(limit = 100): Promise<AppEventRow[]> {
+export async function listAppEvents(
+  limit = 100,
+  eventType?: string | null,
+): Promise<AppEventRow[]> {
   const client = requireClient()
-  const { data, error } = await client
+  let query = client
     .from('app_events')
     .select('id, event_type, actor_id, payload, created_at')
     .order('created_at', { ascending: false })
     .limit(limit)
+  if (eventType) {
+    query = query.eq('event_type', eventType)
+  }
+  const { data, error } = await query
   if (error) throw new AdminApiError(error.message)
   return (data ?? []) as AppEventRow[]
 }

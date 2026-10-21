@@ -74,6 +74,17 @@ Deno.serve(async (req) => {
 
   // Fire-and-forget emails — never block the webhook response
   if (!result.idempotent) {
+    if (verified.outcome === 'failed') {
+      void admin.from('app_events').insert({
+        event_type: 'payment_failed',
+        payload: {
+          orderNumber: verified.orderNumber,
+          provider: provider.name,
+        },
+        ip,
+      })
+    }
+
     const { data: order } = await admin
       .from('orders')
       .select('email, order_number, shipping_name, total')

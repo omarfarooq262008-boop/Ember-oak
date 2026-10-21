@@ -93,6 +93,11 @@ export async function enforceRateLimit(
 
   const decision = evaluateRateLimit(prior, rule, nowMs)
   if (!decision.allowed) {
+    // Fire-and-forget ops signal — never block the 429 response.
+    void admin.from('app_events').insert({
+      event_type: 'rate_limit_hit',
+      payload: { function: key },
+    })
     return { allowed: false, retryAfterSeconds: decision.retryAfterSeconds }
   }
 

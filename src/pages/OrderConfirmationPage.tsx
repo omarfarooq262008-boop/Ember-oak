@@ -1,10 +1,12 @@
 import { CheckCircle2Icon } from 'lucide-react'
+import { useEffect } from 'react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { store } from '@/config/store'
 import { formatPKR } from '@/lib/format'
+import { setSentryOrderStage } from '@/lib/sentry/tags'
 import type { PaymentMethod } from '@/types'
 
 type ConfirmationState = {
@@ -67,6 +69,10 @@ export function OrderConfirmationPage() {
   const trackHref = trackingToken
     ? `/track-order?token=${encodeURIComponent(trackingToken)}`
     : `/track-order?order=${encodeURIComponent(displayNumber)}`
+
+  useEffect(() => {
+    setSentryOrderStage('order_confirmation')
+  }, [])
 
   return (
     <>

@@ -117,6 +117,15 @@ Deno.serve(async (req) => {
     return json({ error: rpcErr.message }, 400)
   }
 
+  void admin.from('app_events').insert({
+    event_type: 'admin_action',
+    actor_id: userData.user.id,
+    payload: {
+      action: 'refund',
+      orderNumber: order.order_number,
+    },
+  })
+
   if (order.email) {
     void sendTransactionalEmail(admin, {
       idempotencyKey: `order_refunded:${order.order_number}`,
@@ -131,3 +140,4 @@ Deno.serve(async (req) => {
 
   return json({ ok: true, result: rpcData })
 })
+
