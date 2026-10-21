@@ -42,7 +42,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 - `is_admin` on `profiles` cannot be self-escalated.
 - Orders are **not** inserted from the browser — use `create-order` (Zod validation, server-side price recompute, atomic stock decrement, discount validation, idempotency key, rate limit).
 - Card payments stay `pending_payment` until a verified provider webhook marks them paid (mock provider for now).
-- Security headers (CSP Report-Only, HSTS, frame deny, etc.) live in [`vercel.json`](vercel.json). When adding a real payment provider, allow their checkout origin in CSP `form-action` and `connect-src` (and `frame-src` if they use an iframe checkout).
+- Security headers (CSP Report-Only, HSTS, frame deny, etc.) live in [`vercel.json`](vercel.json). When adding a real payment provider, allow their checkout origin in CSP `form-action` and `connect-src` (and `frame-src` if they use an iframe checkout). When switching the header from `Content-Security-Policy-Report-Only` to enforcing `Content-Security-Policy`, add `upgrade-insecure-requests` back (browsers ignore that directive in report-only mode).
 
 ## Scripts
 
