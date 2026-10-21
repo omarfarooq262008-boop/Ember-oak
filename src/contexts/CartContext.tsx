@@ -9,18 +9,17 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 
+import {
+  emptyCartState,
+  loadCartState,
+  saveCartState,
+  type StoredCartState,
+} from '@/lib/cartStorage'
 import { checkDiscountCode } from '@/lib/validateDiscount'
 import { computeDeliveryFee } from '@/lib/pricing'
 import type { CartItem } from '@/types'
 
-const STORAGE_KEY = 'eo-cart-v1'
-
-interface CartState {
-  items: CartItem[]
-  discountCode: string | null
-  discountAmount: number
-  discountRuleSummary: string | null
-}
+type CartState = StoredCartState
 
 interface AddItemInput {
   variantId: string
@@ -69,58 +68,14 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null)
 
-function readStorage(): CartState {
-  if (typeof window === 'undefined') {
-    return {
-      items: [],
-      discountCode: null,
-      discountAmount: 0,
-      discountRuleSummary: null,
-    }
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) {
-      return {
-        items: [],
-        discountCode: null,
-        discountAmount: 0,
-        discountRuleSummary: null,
-      }
-    }
-    const parsed = JSON.parse(raw) as CartState
-    return {
-      items: Array.isArray(parsed.items) ? parsed.items : [],
-      discountCode: parsed.discountCode ?? null,
-      discountAmount: parsed.discountAmount ?? 0,
-      discountRuleSummary: parsed.discountRuleSummary ?? null,
-    }
-  } catch {
-    return {
-      items: [],
-      discountCode: null,
-      discountAmount: 0,
-      discountRuleSummary: null,
-    }
-  }
-}
-
-function writeStorage(state: CartState) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  } catch {
-    /* quota or private mode */
-  }
-}
-
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<CartState>(() => readStorage())
+  const [state, setState] = useState<CartState>(() => loadCartState())
   const [cartOpen, setCartOpen] = useState(false)
   const [discountFeedback, setDiscountFeedback] =
     useState<DiscountFeedback>(null)
 
   useEffect(() => {
-    writeStorage(state)
+    saveCartState(state)
   }, [state])
 
   const subtotal = useMemo(
@@ -210,12 +165,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const clear = useCallback(() => {
-    setState({
-      items: [],
-      discountCode: null,
-      discountAmount: 0,
-      discountRuleSummary: null,
-    })
+    setState(emptyCartState())
     setDiscountFeedback(null)
   }, [])
 

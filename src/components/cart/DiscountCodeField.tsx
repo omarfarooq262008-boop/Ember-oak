@@ -1,10 +1,14 @@
 import { AlertCircleIcon, CheckCircle2Icon, Loader2Icon } from 'lucide-react'
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useState, type KeyboardEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useCart } from '@/contexts/CartContext'
+import {
+  runDiscountApplyGesture,
+  runDiscountCodeKeyDown,
+} from '@/lib/discountFieldGestures'
 import { formatPKR } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -40,19 +44,20 @@ export function DiscountCodeField({
     if (discountCode) setCodeInput(discountCode)
   }, [discountCode])
 
-  const statusMessage =
-    localError ??
-    discountFeedback?.message ??
-    (discountCode && discountAmount > 0
-      ? `${discountCode} applied: you save ${formatPKR(discountAmount)}.`
-      : null)
-  const statusTone: 'success' | 'error' | 'info' | null = localError
-    ? 'error'
-    : discountFeedback?.tone ?? (discountCode ? 'success' : null)
+  const statusMessage = pending
+    ? 'Checking code…'
+    : (localError ??
+      discountFeedback?.message ??
+      (discountCode && discountAmount > 0
+        ? `${discountCode} applied: you save ${formatPKR(discountAmount)}.`
+        : null))
+  const statusTone: 'success' | 'error' | 'info' | null = pending
+    ? 'info'
+    : localError
+      ? 'error'
+      : (discountFeedback?.tone ?? (discountCode ? 'success' : null))
 
-  const handleApply = async (e: FormEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const applyCode = async () => {
     setLocalError(null)
     clearDiscountFeedback()
     const trimmed = codeInput.trim()
@@ -64,8 +69,17 @@ export function DiscountCodeField({
     const result = await applyDiscount(trimmed)
     setPending(false)
     if (!result.ok) {
+      // Keep the typed code; cart feedback carries the server/UI message.
       setLocalError(result.message)
     }
+  }
+
+  const handleApplyClick = (e: { preventDefault: () => void; stopPropagation: () => void }) => {
+    runDiscountApplyGesture(e, applyCode)
+  }
+
+  const handleCodeKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    runDiscountCodeKeyDown(e, applyCode)
   }
 
   const handleRemove = () => {
@@ -109,7 +123,7 @@ export function DiscountCodeField({
           </Button>
         </div>
       ) : (
-        <form onSubmit={(e) => void handleApply(e)} className="space-y-2">
+        <div className="space-y-2">
           <Label htmlFor={fieldId}>Discount code</Label>
           <div className="flex gap-2">
             <Input
@@ -123,12 +137,18 @@ export function DiscountCodeField({
                 setCodeInput(e.target.value)
                 if (localError) setLocalError(null)
               }}
+              onKeyDown={handleCodeKeyDown}
               placeholder="Enter code"
               aria-invalid={statusTone === 'error' ? true : undefined}
               aria-describedby={statusMessage ? statusId : undefined}
               disabled={pending}
             />
-            <Button type="submit" variant="secondary" disabled={pending}>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={pending}
+              onClick={handleApplyClick}
+            >
               {pending ? (
                 <>
                   <Loader2Icon className="size-4 animate-spin" aria-hidden />
@@ -139,7 +159,7 @@ export function DiscountCodeField({
               )}
             </Button>
           </div>
-        </form>
+        </div>
       )}
 
       <div
@@ -162,6 +182,8 @@ export function DiscountCodeField({
               <AlertCircleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
             ) : statusTone === 'success' ? (
               <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+            ) : pending ? (
+              <Loader2Icon className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden />
             ) : null}
             <span>{statusMessage}</span>
           </p>
