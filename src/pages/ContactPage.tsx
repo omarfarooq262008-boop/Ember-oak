@@ -27,6 +27,7 @@ export function ContactPage() {
   const [orderNumber, setOrderNumber] = useState('')
   const [message, setMessage] = useState('')
   const [website, setWebsite] = useState('')
+  const [formStartedAt, setFormStartedAt] = useState(() => Date.now())
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -82,6 +83,7 @@ export function ContactPage() {
       orderNumber: orderNumber.trim() || undefined,
       message: message.trim(),
       website: website || undefined,
+      formStartedAt,
     })
     setSubmitting(false)
 
@@ -97,6 +99,7 @@ export function ContactPage() {
     setOrderNumber('')
     setMessage('')
     setWebsite('')
+    setFormStartedAt(Date.now())
     setErrors({})
   }
 

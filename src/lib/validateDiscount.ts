@@ -9,6 +9,7 @@ import {
   evaluateDiscountAgainstRules,
   type DiscountOutcome,
 } from '@/lib/discountReasons'
+import { parseFunctionsInvokeError } from '@/lib/rateLimit'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 export type DiscountCheckResult = DiscountOutcome
@@ -39,10 +40,14 @@ export async function checkDiscountCode(
   })
 
   if (error) {
+    const parsed = await parseFunctionsInvokeError(
+      error as { context?: Response; message?: string },
+      'Could not validate this code. Please try again.',
+    )
     return {
       valid: false,
       reason: 'not_applicable',
-      message: 'Could not validate this code. Please try again.',
+      message: parsed.message,
     }
   }
 

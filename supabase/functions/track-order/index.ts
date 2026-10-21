@@ -4,12 +4,12 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, json } from '../_shared/cors.ts'
+import {
+  enforceRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 const BodySchema = z.union([
   z.object({
@@ -20,13 +20,6 @@ const BodySchema = z.union([
     email: z.string().email().max(254),
   }),
 ])
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
 
 const SAFE_ORDER_SELECT = `
   order_number,
@@ -71,20 +64,10 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid request.' }, 400)
   }
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  const limitId = `track-order:${ip}`
-  const { data: rl } = await admin.from('rate_limits').select('*').eq('id', limitId).maybeSingle()
-  if (rl && rl.count >= 20 && Date.now() - new Date(rl.window_start).getTime() < 60_000) {
-    return json({ error: 'Too many requests' }, 429)
-  }
-  if (!rl || Date.now() - new Date(rl.window_start).getTime() >= 60_000) {
-    await admin.from('rate_limits').upsert({
-      id: limitId,
-      count: 1,
-      window_start: new Date().toISOString(),
-    })
-  } else {
-    await admin.from('rate_limits').update({ count: rl.count + 1 }).eq('id', limitId)
+  const ip = getClientIp(req)
+  const limited = await enforceRateLimit(admin, 'track-order', ip)
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSeconds)
   }
 
   let query = admin.from('orders').select(SAFE_ORDER_SELECT)

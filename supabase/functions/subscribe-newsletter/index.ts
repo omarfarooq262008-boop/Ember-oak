@@ -1,29 +1,25 @@
 /**
- * subscribe-newsletter — rate-limited newsletter signup with honeypot.
+ * subscribe-newsletter — rate-limited newsletter signup with honeypot + min fill time.
  * Secrets only from Deno.env.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, json } from '../_shared/cors.ts'
+import {
+  enforceRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
+import { MIN_FORM_TIME_MS } from '../_shared/rateLimitConfig.ts'
 
 const BodySchema = z.object({
   email: z.string().email().max(254),
   source: z.string().max(64).optional().nullable(),
   /** Honeypot — must be empty */
   website: z.string().max(0).optional().nullable(),
+  /** Client form open timestamp (ms). Bots that submit instantly are dropped. */
+  formStartedAt: z.number().int().positive().optional().nullable(),
 })
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -45,25 +41,26 @@ Deno.serve(async (req) => {
     return json({ ok: true })
   }
 
+  if (raw && typeof raw === 'object') {
+    const started = (raw as { formStartedAt?: unknown }).formStartedAt
+    if (
+      typeof started !== 'number' ||
+      !Number.isFinite(started) ||
+      Date.now() - started < MIN_FORM_TIME_MS
+    ) {
+      return json({ ok: true })
+    }
+  }
+
   const parsed = BodySchema.safeParse(raw)
   if (!parsed.success) {
     return json({ error: 'Enter a valid email address.' }, 400)
   }
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  const limitId = `newsletter:${ip}`
-  const { data: rl } = await admin.from('rate_limits').select('*').eq('id', limitId).maybeSingle()
-  if (rl && rl.count >= 10 && Date.now() - new Date(rl.window_start).getTime() < 60_000) {
-    return json({ error: 'Too many requests' }, 429)
-  }
-  if (!rl || Date.now() - new Date(rl.window_start).getTime() >= 60_000) {
-    await admin.from('rate_limits').upsert({
-      id: limitId,
-      count: 1,
-      window_start: new Date().toISOString(),
-    })
-  } else {
-    await admin.from('rate_limits').update({ count: rl.count + 1 }).eq('id', limitId)
+  const ip = getClientIp(req)
+  const limited = await enforceRateLimit(admin, 'subscribe-newsletter', ip)
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSeconds)
   }
 
   const email = parsed.data.email.trim().toLowerCase()

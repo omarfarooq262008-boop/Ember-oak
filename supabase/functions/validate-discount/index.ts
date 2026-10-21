@@ -5,24 +5,18 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, json } from '../_shared/cors.ts'
+import {
+  enforceRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
+import { RATE_LIMIT_MESSAGE } from '../_shared/rateLimitConfig.ts'
 
 const BodySchema = z.object({
   code: z.string().min(1).max(64),
   subtotal: z.number().min(0).max(10_000_000),
 })
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
 
 function formatPkr(n: number): string {
   return `PKR ${Math.round(n).toLocaleString('en-PK')}`
@@ -72,35 +66,10 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  const limitId = `validate-discount:${ip}`
-  const { data: rl } = await admin
-    .from('rate_limits')
-    .select('*')
-    .eq('id', limitId)
-    .maybeSingle()
-  if (
-    rl &&
-    rl.count >= 30 &&
-    Date.now() - new Date(rl.window_start).getTime() < 60_000
-  ) {
-    return json(
-      { valid: false, reason: 'not_applicable', message: 'Too many requests.' },
-      429,
-    )
-  }
-  if (!rl || Date.now() - new Date(rl.window_start).getTime() >= 60_000) {
-    await admin.from('rate_limits').upsert({
-      id: limitId,
-      count: 1,
-      window_start: new Date().toISOString(),
-    })
-  } else {
-    await admin
-      .from('rate_limits')
-      .update({ count: rl.count + 1 })
-      .eq('id', limitId)
+  const ip = getClientIp(req)
+  const limited = await enforceRateLimit(admin, 'validate-discount', ip)
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSeconds, RATE_LIMIT_MESSAGE)
   }
 
   // Look up without is_active filter so inactive can be distinguished (same public msg)

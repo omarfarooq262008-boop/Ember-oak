@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
+import { parseFunctionsInvokeError } from '@/lib/rateLimit'
 
 export type CreateOrderPayload = {
   email: string
@@ -45,23 +46,14 @@ export async function createOrderRemote(
   })
 
   if (error) {
-    // Functions invoke may put JSON error body on context
-    const ctx = error as { context?: Response; message?: string }
-    try {
-      const body = ctx.context ? await ctx.context.json() : null
-      if (body?.error && typeof body.error === 'string') {
-        return {
-          ok: false,
-          message: body.error,
-          status: ctx.context?.status,
-        }
-      }
-    } catch {
-      /* ignore */
-    }
+    const parsed = await parseFunctionsInvokeError(
+      error as { context?: Response; message?: string },
+      'Could not place order. Please try again.',
+    )
     return {
       ok: false,
-      message: error.message || 'Could not place order. Please try again.',
+      message: parsed.message,
+      status: parsed.status,
     }
   }
 
@@ -130,14 +122,11 @@ export async function trackOrderRemote(
   })
 
   if (error) {
-    try {
-      const ctx = error as { context?: Response }
-      const body = ctx.context ? await ctx.context.json() : null
-      if (body?.error) return { ok: false, message: String(body.error) }
-    } catch {
-      /* ignore */
-    }
-    return { ok: false, message: 'Could not look up this order.' }
+    const parsed = await parseFunctionsInvokeError(
+      error as { context?: Response; message?: string },
+      'Could not look up this order.',
+    )
+    return { ok: false, message: parsed.message }
   }
 
   const body = data as { order?: TrackedOrder; error?: string } | null
@@ -154,6 +143,7 @@ export async function submitContactRemote(input: {
   orderNumber?: string
   message: string
   website?: string
+  formStartedAt?: number
 }): Promise<{ ok: true } | { ok: false; message: string }> {
   if (!isSupabaseConfigured || !supabase) {
     return { ok: false, message: 'Contact form is not configured.' }
@@ -162,7 +152,11 @@ export async function submitContactRemote(input: {
     body: input,
   })
   if (error) {
-    return { ok: false, message: 'Could not send your message. Please try again.' }
+    const parsed = await parseFunctionsInvokeError(
+      error as { context?: Response; message?: string },
+      'Could not send your message. Please try again.',
+    )
+    return { ok: false, message: parsed.message }
   }
   if ((data as { error?: string } | null)?.error) {
     return { ok: false, message: (data as { error: string }).error }
@@ -174,6 +168,7 @@ export async function subscribeNewsletterRemote(input: {
   email: string
   website?: string
   source?: string
+  formStartedAt?: number
 }): Promise<{ ok: true } | { ok: false; message: string }> {
   if (!isSupabaseConfigured || !supabase) {
     return { ok: false, message: 'Newsletter is not configured.' }
@@ -182,7 +177,11 @@ export async function subscribeNewsletterRemote(input: {
     body: input,
   })
   if (error) {
-    return { ok: false, message: 'Could not subscribe right now.' }
+    const parsed = await parseFunctionsInvokeError(
+      error as { context?: Response; message?: string },
+      'Could not subscribe right now.',
+    )
+    return { ok: false, message: parsed.message }
   }
   if ((data as { error?: string } | null)?.error) {
     return { ok: false, message: (data as { error: string }).error }

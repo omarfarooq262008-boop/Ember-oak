@@ -11,41 +11,16 @@ import {
   signMockWebhookPayload,
 } from '../_shared/payments.ts'
 import { sendTransactionalEmail } from '../_shared/email.ts'
+import {
+  enforceRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 const BodySchema = z.object({
   orderNumber: z.string().min(4).max(64),
   outcome: z.enum(['paid', 'failed', 'cancelled']),
 })
-
-async function rateLimit(
-  admin: ReturnType<typeof createClient>,
-  key: string,
-  limit: number,
-  windowSeconds: number,
-): Promise<boolean> {
-  const id = `mock-sign:${key}`
-  const { data } = await admin.from('rate_limits').select('*').eq('id', id).maybeSingle()
-  const now = Date.now()
-  if (!data) {
-    await admin.from('rate_limits').insert({
-      id,
-      count: 1,
-      window_start: new Date().toISOString(),
-    })
-    return true
-  }
-  const start = new Date(data.window_start).getTime()
-  if (now - start > windowSeconds * 1000) {
-    await admin
-      .from('rate_limits')
-      .update({ count: 1, window_start: new Date().toISOString() })
-      .eq('id', id)
-    return true
-  }
-  if (data.count >= limit) return false
-  await admin.from('rate_limits').update({ count: data.count + 1 }).eq('id', id)
-  return true
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -76,13 +51,10 @@ Deno.serve(async (req) => {
   }
   const { orderNumber, outcome } = parsed.data
 
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('cf-connecting-ip') ??
-    'unknown'
-  const allowed = await rateLimit(admin, `${ip}:${orderNumber}`, 20, 60)
-  if (!allowed) {
-    return json({ error: 'Too many requests' }, 429)
+  const ip = getClientIp(req)
+  const limited = await enforceRateLimit(admin, 'mock-sign-payment', ip)
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSeconds)
   }
 
   const { data: order } = await admin

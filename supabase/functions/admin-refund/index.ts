@@ -7,6 +7,10 @@ import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { getPaymentProvider } from '../_shared/payments.ts'
 import { sendTransactionalEmail } from '../_shared/email.ts'
+import {
+  enforceRateLimit,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 const BodySchema = z.object({
   orderId: z.string().uuid(),
@@ -48,6 +52,11 @@ Deno.serve(async (req) => {
     .maybeSingle()
   if (!profile?.is_admin) {
     return json({ error: 'Forbidden' }, 403)
+  }
+
+  const limited = await enforceRateLimit(admin, 'admin', userData.user.id)
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSeconds)
   }
 
   const raw = await req.json().catch(() => null)

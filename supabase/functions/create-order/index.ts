@@ -8,6 +8,11 @@ import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { getPaymentProvider } from '../_shared/payments.ts'
 import { sendTransactionalEmail } from '../_shared/email.ts'
+import {
+  enforceRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 const LineSchema = z.object({
   variantId: z.string().uuid(),
@@ -62,36 +67,6 @@ function mapRpcError(message: string): { status: number; error: string } {
   return { status: 400, error: message || 'Could not create order.' }
 }
 
-async function rateLimit(
-  admin: ReturnType<typeof createClient>,
-  key: string,
-  limit: number,
-  windowSeconds: number,
-): Promise<boolean> {
-  const id = `create-order:${key}`
-  const { data } = await admin.from('rate_limits').select('*').eq('id', id).maybeSingle()
-  const now = Date.now()
-  if (!data) {
-    await admin.from('rate_limits').insert({
-      id,
-      count: 1,
-      window_start: new Date().toISOString(),
-    })
-    return true
-  }
-  const start = new Date(data.window_start).getTime()
-  if (now - start > windowSeconds * 1000) {
-    await admin
-      .from('rate_limits')
-      .update({ count: 1, window_start: new Date().toISOString() })
-      .eq('id', id)
-    return true
-  }
-  if (data.count >= limit) return false
-  await admin.from('rate_limits').update({ count: data.count + 1 }).eq('id', id)
-  return true
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -115,14 +90,10 @@ Deno.serve(async (req) => {
     }
     const body = parsed.data
 
-    const ip =
-      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-      req.headers.get('cf-connecting-ip') ??
-      'unknown'
-
-    const allowed = await rateLimit(admin, `${ip}:${body.email.toLowerCase()}`, 8, 60)
-    if (!allowed) {
-      return json({ error: 'Too many requests. Please wait a moment.' }, 429)
+    const ip = getClientIp(req)
+    const limited = await enforceRateLimit(admin, 'create-order', ip)
+    if (!limited.allowed) {
+      return rateLimitResponse(limited.retryAfterSeconds)
     }
 
     let userId: string | null = null

@@ -16,6 +16,7 @@ function isValidEmail(value: string): boolean {
 export function Newsletter() {
   const [email, setEmail] = useState('')
   const [website, setWebsite] = useState('')
+  const [formStartedAt, setFormStartedAt] = useState(() => Date.now())
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { ref, inView } = useInViewFade<HTMLElement>()
@@ -37,6 +38,7 @@ export function Newsletter() {
       email: trimmed,
       website: website || undefined,
       source: 'home',
+      formStartedAt,
     })
     setSubmitting(false)
     if (!result.ok) {
@@ -46,6 +48,7 @@ export function Newsletter() {
     toast.success('You’re on the list — thank you.')
     setEmail('')
     setWebsite('')
+    setFormStartedAt(Date.now())
   }
 
   return (

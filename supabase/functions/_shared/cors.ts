@@ -4,9 +4,17 @@ export const corsHeaders: Record<string, string> = {
     'authorization, x-client-info, apikey, content-type, x-idempotency-key, x-payment-signature',
 }
 
-export function json(data: unknown, status = 200): Response {
+export function json(
+  data: unknown,
+  status = 200,
+  extraHeaders?: Record<string, string>,
+): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    },
   })
 }

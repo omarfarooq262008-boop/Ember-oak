@@ -6,6 +6,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { getPaymentProvider } from '../_shared/payments.ts'
 import { sendTransactionalEmail } from '../_shared/email.ts'
+import {
+  enforceRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -22,24 +27,10 @@ Deno.serve(async (req) => {
   }
   const admin = createClient(supabaseUrl, serviceKey)
 
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('cf-connecting-ip') ??
-    'unknown'
-  const rlId = `payment-webhook:${ip}`
-  const { data: rl } = await admin.from('rate_limits').select('*').eq('id', rlId).maybeSingle()
-  const now = Date.now()
-  if (rl && rl.count >= 60 && now - new Date(rl.window_start).getTime() < 60_000) {
-    return json({ error: 'Too many requests' }, 429)
-  }
-  if (!rl || now - new Date(rl.window_start).getTime() >= 60_000) {
-    await admin.from('rate_limits').upsert({
-      id: rlId,
-      count: 1,
-      window_start: new Date().toISOString(),
-    })
-  } else {
-    await admin.from('rate_limits').update({ count: rl.count + 1 }).eq('id', rlId)
+  const ip = getClientIp(req)
+  const limited = await enforceRateLimit(admin, 'payment-webhook', ip)
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSeconds)
   }
 
   const provider = getPaymentProvider()

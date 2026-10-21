@@ -46,13 +46,17 @@ function PaymentIcons() {
 export function Footer({ onSubscribe, className }: FooterProps) {
   const [email, setEmail] = useState('')
   const [website, setWebsite] = useState('')
+  const [formStartedAt, setFormStartedAt] = useState(() => Date.now())
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleSubscribe = async (e: FormEvent) => {
     e.preventDefault()
     const trimmed = email.trim()
+    setErrorMessage(null)
     if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setStatus('error')
+      setErrorMessage('Enter a valid email address.')
       return
     }
     setStatus('loading')
@@ -64,14 +68,21 @@ export function Footer({ onSubscribe, className }: FooterProps) {
           email: trimmed,
           website: website || undefined,
           source: 'footer',
+          formStartedAt,
         })
         if (!result.ok) throw new Error(result.message)
       }
       setEmail('')
       setWebsite('')
+      setFormStartedAt(Date.now())
       setStatus('done')
-    } catch {
+    } catch (err) {
       setStatus('error')
+      setErrorMessage(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Enter a valid email address.',
+      )
     }
   }
 
@@ -200,7 +211,7 @@ export function Footer({ onSubscribe, className }: FooterProps) {
           ) : null}
           {status === 'error' ? (
             <p className="mt-2 text-sm text-error" role="alert">
-              Enter a valid email address.
+              {errorMessage ?? 'Enter a valid email address.'}
             </p>
           ) : null}
         </div>

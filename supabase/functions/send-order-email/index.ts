@@ -10,6 +10,10 @@ import {
   sendTransactionalEmail,
   type EmailTemplateId,
 } from '../_shared/email.ts'
+import {
+  enforceRateLimit,
+  rateLimitResponse,
+} from '../_shared/rateLimit.ts'
 
 const BodySchema = z.object({
   orderId: z.string().uuid().optional(),
@@ -46,10 +50,12 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get('Authorization') ?? ''
   let isAllowed = false
+  let rateSubject = 'service'
   if (authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7)
     if (token === serviceKey) {
       isAllowed = true
+      rateSubject = 'service'
     } else if (anonKey) {
       const userClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
@@ -62,11 +68,17 @@ Deno.serve(async (req) => {
           .eq('id', userData.user.id)
           .maybeSingle()
         isAllowed = Boolean(profile?.is_admin)
+        if (isAllowed) rateSubject = userData.user.id
       }
     }
   }
   if (!isAllowed) {
     return json({ error: 'Forbidden' }, 403)
+  }
+
+  const limited = await enforceRateLimit(admin, 'admin', rateSubject)
+  if (!limited.allowed) {
+    return rateLimitResponse(limited.retryAfterSeconds)
   }
 
   const raw = await req.json().catch(() => null)
