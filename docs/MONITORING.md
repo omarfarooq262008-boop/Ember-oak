@@ -40,10 +40,8 @@ Alert email: use your ops inbox (for example the address in `STORE_NOTIFY_EMAIL`
 
 1. **Friendly Name:** `Ember & Oak — health function`
 2. **URL:** `https://ayxpzhmwmfukskqfgglb.supabase.co/functions/v1/health`
-3. Open **Advanced Settings** / custom HTTP headers and add:
-   - `apikey`: your Supabase **publishable** (anon) key  
-   - `Authorization`: `Bearer ` + the same publishable key  
-4. Expect **HTTP 200** and a body like `{"status":"ok","time":"..."}`.
+3. **Monitor Type:** HTTP(s) — method **GET** (HEAD also works; no API key or Authorization header needed).
+4. Expect **HTTP 200** and a body like `{"status":"ok","time":"..."}`. Degraded DB returns **503** with `{"status":"degraded","time":"..."}`.
 5. Save.
 
 UptimeRobot will email you when any monitor goes down or recovers.

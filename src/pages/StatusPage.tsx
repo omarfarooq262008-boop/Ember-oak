@@ -17,17 +17,11 @@ async function fetchHealth(): Promise<HealthState> {
     /\/$/,
     '',
   )
-  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
-  if (!base || !key) return { kind: 'error' }
+  if (!base) return { kind: 'error' }
 
   try {
-    const res = await fetch(`${base}/functions/v1/health`, {
-      method: 'GET',
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-      },
-    })
+    // Public endpoint — no Authorization / apikey required (verify_jwt = false).
+    const res = await fetch(`${base}/functions/v1/health`, { method: 'GET' })
     const body = (await res.json().catch(() => null)) as {
       status?: string
       time?: string
