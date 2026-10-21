@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "$csp_payment_note": "Future payment provider: add their checkout origin to form-action and connect-src (and frame-src if they use an iframe checkout).",
   "cleanUrls": false,
   "headers": [
     {
