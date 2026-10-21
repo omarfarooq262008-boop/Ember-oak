@@ -24,6 +24,7 @@ import { ReturnsPage } from '@/pages/ReturnsPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { ShippingPage } from '@/pages/ShippingPage'
 import { ShopPage } from '@/pages/ShopPage'
+import { SentryTestPage } from '@/pages/SentryTestPage'
 import { TermsPage } from '@/pages/TermsPage'
 import { AdminContactPage } from '@/pages/admin/AdminContactPage'
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
@@ -68,6 +69,11 @@ const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
+  },
+  {
+    path: '/sentry-test',
+    element: <AdminGate />,
+    children: [{ index: true, element: <SentryTestPage /> }],
   },
   {
     path: '/admin',

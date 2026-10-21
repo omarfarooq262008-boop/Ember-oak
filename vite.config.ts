@@ -123,6 +123,15 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(rootDir, './src'),
       },
     },
+    // Vercel injects these at build time; expose them for Sentry release/environment.
+    define: {
+      'import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA': JSON.stringify(
+        process.env.VERCEL_GIT_COMMIT_SHA ?? '',
+      ),
+      'import.meta.env.VITE_VERCEL_ENV': JSON.stringify(
+        process.env.VERCEL_ENV ?? '',
+      ),
+    },
     build: {
       rollupOptions: {
         output: {
