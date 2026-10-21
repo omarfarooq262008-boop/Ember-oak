@@ -3,7 +3,7 @@
  * Local seed (`src/data/catalog.ts`) is ONLY used in development when
  * VITE_SUPABASE_URL is missing. Production builds never fall back silently.
  */
-export function useLocalCatalogFallback(): boolean {
+export function shouldUseLocalCatalogFallback(): boolean {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
   if (url && url.length > 0) return false
   if (import.meta.env.PROD) return false
@@ -11,7 +11,7 @@ export function useLocalCatalogFallback(): boolean {
 }
 
 export function requireSupabaseOrFallback(): 'supabase' | 'local' {
-  if (useLocalCatalogFallback()) return 'local'
+  if (shouldUseLocalCatalogFallback()) return 'local'
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
   if (!url || !key) {

@@ -45,11 +45,38 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 
 ## Scripts
 
-| Command       | Description              |
-|---------------|--------------------------|
-| `npm run dev` | Vite dev server          |
-| `npm run build` | Typecheck + production build |
-| `npm run preview` | Preview production build |
+| Command             | Description                     |
+|---------------------|---------------------------------|
+| `npm run dev`       | Vite dev server                 |
+| `npm run lint`      | Code linting with oxlint        |
+| `npm run typecheck` | Type check without emitting     |
+| `npm test`          | Run Vitest test suite           |
+| `npm run build`     | SEO generation + tsc + vite     |
+| `npm run preview`   | Preview production build        |
+
+## Deployment and checks
+
+### Automated CI pipeline
+Every push and pull request targeting `main` automatically runs `.github/workflows/ci.yml`:
+1. **Dependency installation:** `npm ci` with cached npm dependencies.
+2. **Linting:** `npm run lint` (oxlint).
+3. **TypeScript validation:** `npm run typecheck` (`tsc -b`).
+4. **Unit tests:** `npm test` (`vitest run`).
+5. **Production build:** `npm run build` (with placeholder environment variables to verify bundling passes without secrets).
+
+Any failure halts the pipeline and blocks the deployment.
+
+### Running checks locally
+To verify your work before pushing to GitHub:
+```bash
+npm run lint         # Fast code linting
+npm run typecheck    # Strict TypeScript checks
+npm test             # Run all unit tests
+npm run build        # Test production build bundle
+```
+
+### Database testing workflow
+`.github/workflows/db-tests.yml` provides a manual test suite (`workflow_dispatch` only) for SQL test files in `supabase/tests/`. It requires the `TEST_DATABASE_URL` secret and safety guards guarantee it will never execute against production databases.
 
 ## Project structure
 

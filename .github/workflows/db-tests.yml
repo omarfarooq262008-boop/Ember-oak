@@ -1,0 +1,62 @@
+name: Database Tests
+
+# Manual execution only. Never run on push or against production.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Confirmation that target is a dedicated TEST database (type "RUN_TESTS")'
+        required: true
+        default: 'RUN_TESTS'
+
+jobs:
+  run-db-tests:
+    name: Run SQL Tests on Test Database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify safety guards and secret
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          CONFIRMATION: ${{ github.event.inputs.confirmation }}
+        run: |
+          if [ "$CONFIRMATION" != "RUN_TESTS" ]; then
+            echo "::error::Execution rejected. You must confirm by entering 'RUN_TESTS'."
+            exit 1
+          fi
+
+          if [ -z "$TEST_DATABASE_URL" ]; then
+            echo "::error::TEST_DATABASE_URL secret is missing! This workflow will only run against a dedicated test database."
+            exit 1
+          fi
+
+          # Safety check to prevent running against production databases
+          LOWER_URL=$(echo "$TEST_DATABASE_URL" | tr '[:upper:]' '[:lower:]')
+          if echo "$LOWER_URL" | grep -qE "prod|production|abjzzbqnhutzklvwgftu"; then
+            echo "::error::DANGER: TEST_DATABASE_URL appears to point to a production database. Refusing to run tests."
+            exit 1
+          fi
+
+          echo "Safety checks passed: running against test database."
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+
+      - name: Run SQL test suite
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: |
+          echo "Executing test scripts from supabase/tests in order..."
+          for test_file in supabase/tests/*.sql; do
+            if [ -f "$test_file" ]; then
+              echo "----------------------------------------"
+              echo "Executing: $test_file"
+              echo "----------------------------------------"
+              psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$test_file"
+            fi
+          done
+          echo "All database tests executed successfully."
