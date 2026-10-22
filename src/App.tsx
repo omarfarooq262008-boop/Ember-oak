@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AdminGate } from '@/components/admin/AdminGate'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { RootLayout } from '@/components/layout/RootLayout'
+import { AboutDemoPage } from '@/pages/AboutDemoPage'
 import { AboutPage } from '@/pages/AboutPage'
 import { AccountPage } from '@/pages/AccountPage'
 import { CartPage } from '@/pages/CartPage'
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
       { path: 'track-order', element: <OrderTrackingPage /> },
       { path: 'email-preview', element: <EmailPreviewPage /> },
       { path: 'about', element: <AboutPage /> },
+      { path: 'about-demo', element: <AboutDemoPage /> },
       { path: 'contact', element: <ContactPage /> },
       { path: 'shipping', element: <ShippingPage /> },
       { path: 'returns', element: <ReturnsPage /> },

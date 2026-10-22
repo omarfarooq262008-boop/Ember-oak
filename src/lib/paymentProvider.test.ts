@@ -6,9 +6,49 @@ import {
 } from './paymentProvider'
 
 describe('mock checkout gate', () => {
-  it('allows /mock-checkout when the server reports mock', () => {
+  it('renders checkout when VITE_DEMO_MODE is true (demoMode)', () => {
     expect(
-      resolveMockCheckoutAccess({ loading: false, provider: 'mock' }),
+      resolveMockCheckoutAccess({
+        loading: false,
+        provider: null,
+        error: true,
+        demoMode: true,
+      }),
+    ).toBe('checkout')
+    expect(
+      resolveMockCheckoutAccess({
+        loading: true,
+        provider: 'safepay',
+        demoMode: true,
+      }),
+    ).toBe('checkout')
+  })
+
+  it('shows the 404 page when demoMode is off and provider is not mock', () => {
+    expect(
+      resolveMockCheckoutAccess({
+        loading: false,
+        provider: 'safepay',
+        demoMode: false,
+      }),
+    ).toBe('notfound')
+    expect(
+      resolveMockCheckoutAccess({
+        loading: false,
+        provider: null,
+        error: true,
+        demoMode: false,
+      }),
+    ).toBe('notfound')
+  })
+
+  it('allows /mock-checkout when the server reports mock (non-demo)', () => {
+    expect(
+      resolveMockCheckoutAccess({
+        loading: false,
+        provider: 'mock',
+        demoMode: false,
+      }),
     ).toBe('checkout')
     expect(isMockPaymentProvider('mock')).toBe(true)
     expect(isMockPaymentProvider('MOCK')).toBe(true)
@@ -27,7 +67,7 @@ describe('mock checkout gate', () => {
     expect(isMockPaymentProvider('safepay')).toBe(false)
   })
 
-  it('stays on loading until the server flag arrives', () => {
+  it('stays on loading until the server flag arrives (non-demo)', () => {
     expect(
       resolveMockCheckoutAccess({ loading: true, provider: null }),
     ).toBe('loading')

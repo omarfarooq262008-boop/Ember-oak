@@ -14,15 +14,20 @@ export function isMockPaymentProvider(
 }
 
 /**
- * Gate for /mock-checkout: only show the page when the server says provider is mock.
- * Real protection remains on mock-sign-payment (refuses unless PAYMENT_PROVIDER=mock).
+ * Gate for /mock-checkout.
+ * - VITE_DEMO_MODE=true → always allow the page (portfolio / demo on Vercel).
+ * - Otherwise → only when health reports paymentProvider=mock.
+ * Real charge protection remains on mock-sign-payment (PAYMENT_PROVIDER=mock).
  */
 export function resolveMockCheckoutAccess(opts: {
   loading: boolean
   provider: string | null | undefined
   /** Failed to learn provider — fail closed (404), never open mock UI. */
   error?: boolean
+  /** Build-time VITE_DEMO_MODE === "true" */
+  demoMode?: boolean
 }): MockCheckoutAccess {
+  if (opts.demoMode) return 'checkout'
   if (opts.loading) return 'loading'
   if (opts.error) return 'notfound'
   return isMockPaymentProvider(opts.provider) ? 'checkout' : 'notfound'

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 
 import { store } from '@/config/store'
+import { isDemoNoindex } from '@/lib/demoMode'
 
 type SeoProps = {
   title?: string
@@ -75,14 +76,15 @@ function Seo({
 
     upsertMeta('twitter:card', 'summary_large_image')
 
-    if (noindex) {
+    const robotsNoindex = noindex || isDemoNoindex()
+    if (robotsNoindex) {
       upsertMeta('robots', 'noindex, nofollow')
     } else {
       document.head.querySelector('meta[name="robots"]')?.remove()
     }
 
     return () => {
-      if (noindex) {
+      if (robotsNoindex && !isDemoNoindex()) {
         document.head.querySelector('meta[name="robots"]')?.remove()
       }
       if (url) {

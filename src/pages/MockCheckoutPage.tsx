@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { isDemoMode } from '@/lib/demoMode'
 import { formatPKR } from '@/lib/format'
 import {
   fetchPaymentProviderName,
@@ -18,14 +19,17 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase'
  * Hosted fake checkout for PAYMENT_PROVIDER=mock.
  * Never holds the webhook secret — signs via mock-sign-payment edge function.
  *
- * Visibility is gated by the public health.paymentProvider flag (server truth).
+ * Page visibility: VITE_DEMO_MODE=true, or health.paymentProvider=mock.
  * mock-sign-payment still refuses unless PAYMENT_PROVIDER=mock.
  */
 export function MockCheckoutPage() {
+  const demoMode = isDemoMode()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const [busy, setBusy] = useState<'paid' | 'failed' | 'cancelled' | null>(null)
-  const [access, setAccess] = useState<MockCheckoutAccess>('loading')
+  const [access, setAccess] = useState<MockCheckoutAccess>(() =>
+    demoMode ? 'checkout' : 'loading',
+  )
 
   const orderNumber = params.get('order') ?? ''
   const amount = Number(params.get('amount') ?? 0)
@@ -39,6 +43,16 @@ export function MockCheckoutPage() {
   }, [amount, currency])
 
   useEffect(() => {
+    if (demoMode) {
+      setAccess(
+        resolveMockCheckoutAccess({
+          loading: false,
+          provider: null,
+          demoMode: true,
+        }),
+      )
+      return
+    }
     let cancelled = false
     void (async () => {
       const { provider, error } = await fetchPaymentProviderName()
@@ -48,13 +62,14 @@ export function MockCheckoutPage() {
           loading: false,
           provider,
           error,
+          demoMode: false,
         }),
       )
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [demoMode])
 
   useEffect(() => {
     if (access === 'checkout') setSentryOrderStage('mock_payment')
@@ -141,6 +156,9 @@ export function MockCheckoutPage() {
           Mock payment provider
         </p>
         <h1 className="mt-2 text-3xl">Complete payment</h1>
+        <p className="mt-2 text-sm font-medium text-text">
+          Test mode: no real money is charged.
+        </p>
         <p className="mt-2 text-sm text-muted">
           This is a hosted fake checkout. No card data is collected or stored. The browser never
           holds the webhook secret — outcomes are signed server-side only when{' '}
