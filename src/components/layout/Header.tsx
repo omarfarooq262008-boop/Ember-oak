@@ -5,7 +5,7 @@ import {
   UserIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 
 import { SearchDialog } from '@/components/search/SearchDialog'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ import { useScrollShrink } from '@/hooks/useScrollShrink'
 import { cn } from '@/lib/utils'
 
 export function Header() {
+  const { pathname } = useLocation()
   const shrunk = useScrollShrink(32)
   const { user, profile, loading: authLoading } = useAuth()
   const { itemCount, openCart } = useCart()
@@ -37,6 +38,12 @@ export function Header() {
   const { data: categories = [] } = useCategories()
   const { data: featuredCollections = [] } = useCollections(true)
   const heroCollection = featuredCollections[0]
+
+  useEffect(() => {
+    setMobileOpen(false)
+    setSearchOpen(false)
+    setShopOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     if (itemCount > prevCount.current) {

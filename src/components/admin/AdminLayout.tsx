@@ -11,10 +11,11 @@ import {
   StarIcon,
   WarehouseIcon,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
+import { ScrollToTop } from '@/components/ScrollToTop'
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import {
@@ -89,8 +90,17 @@ export function AdminLayout() {
       navActive(pathname, item.to, 'end' in item ? Boolean(item.end) : false),
     )?.label ?? 'Admin'
 
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  const onPathnameChange = useCallback(() => {
+    setMobileOpen(false)
+  }, [])
+
   return (
     <div className="flex min-h-dvh flex-col bg-background md:flex-row">
+      <ScrollToTop onPathnameChange={onPathnameChange} />
       <Seo title={`Admin — ${current}`} noindex />
       <aside className="hidden w-64 shrink-0 border-r border-border bg-surface md:flex md:flex-col">
         <div className="border-b border-border px-4 py-5">

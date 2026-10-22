@@ -6,6 +6,7 @@ import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
 import { DemoBanner } from '@/components/layout/DemoBanner'
 import { Footer } from '@/components/layout/Footer'
 import { Header } from '@/components/layout/Header'
+import { StorefrontScrollToTop } from '@/components/layout/StorefrontScrollToTop'
 import { StoreSettingsHydrator } from '@/components/layout/StoreSettingsHydrator'
 import { DemoNoindex } from '@/components/seo/DemoNoindex'
 import { SentryRouteTags } from '@/components/sentry/SentryRouteTags'
@@ -16,6 +17,7 @@ export function RootLayout() {
   return (
     <CartProvider>
       <WishlistProvider>
+        <StorefrontScrollToTop />
         <StoreSettingsHydrator />
         <SentryRouteTags />
         <DemoNoindex />
