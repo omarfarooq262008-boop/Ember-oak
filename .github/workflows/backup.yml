@@ -18,59 +18,73 @@ jobs:
   backup:
     name: pg_dump and upload artifact
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Verify DATABASE_URL secret
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
+          set -euo pipefail
           if [ -z "$DATABASE_URL" ]; then
             echo "::error::DATABASE_URL secret is missing. Add it under Settings → Secrets and variables → Actions."
             exit 1
           fi
           echo "DATABASE_URL secret is present (value not printed)."
 
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL 17 client (PGDG)
         run: |
+          set -euo pipefail
           sudo apt-get update -y
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y curl ca-certificates gnupg lsb-release
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client-17
+          pg_dump --version
 
-      - name: Dump database (public + auth where permitted)
+      - name: Dump database (public schema)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           set -euo pipefail
+          # Do not echo DATABASE_URL or any connection details.
+          trap 'echo "::error::pg_dump failed. Check: client/server version mismatch, authentication (user/password/role), or network reachability to the database host. Connection string is not printed."' ERR
+
           STAMP=$(date -u +%Y%m%dT%H%M%SZ)
           OUT="ember-oak-backup-${STAMP}.sql"
-          # Do not echo DATABASE_URL. Schema + data for public; auth if role allows.
+
+          # public schema + data only. Skip Supabase-managed schemas the pooler user cannot read.
           pg_dump \
             --format=plain \
             --no-owner \
-            --no-acl \
+            --no-privileges \
             --schema=public \
-            --schema=auth \
             --file="$OUT" \
-            "$DATABASE_URL" \
-            || {
-              echo "Full public+auth dump failed; retrying public schema only…"
-              pg_dump \
-                --format=plain \
-                --no-owner \
-                --no-acl \
-                --schema=public \
-                --file="$OUT" \
-                "$DATABASE_URL"
-            }
+            "$DATABASE_URL"
+
+          if [ ! -s "$OUT" ]; then
+            echo "::error::Dump file is empty. Aborting upload."
+            exit 1
+          fi
+
           gzip -9 "$OUT"
+          if [ ! -s "${OUT}.gz" ]; then
+            echo "::error::Compressed dump is empty. Aborting upload."
+            exit 1
+          fi
+
           ls -lh "${OUT}.gz"
           echo "BACKUP_FILE=${OUT}.gz" >> "$GITHUB_ENV"
 
       - name: Upload private artifact (30 days)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: database-backup
           path: ${{ env.BACKUP_FILE }}
