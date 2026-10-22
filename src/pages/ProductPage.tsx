@@ -12,6 +12,7 @@ import {
   getDefaultSelection,
   getVariantAttributeKeys,
 } from '@/components/product/VariantSelector'
+import { ProductStructuredData } from '@/components/seo/JsonLd'
 import { Seo } from '@/components/seo/Seo'
 import {
   Accordion,
@@ -31,7 +32,7 @@ import {
 import { getStockState } from '@/lib/api/stock'
 import { formatPKR, savingsAmount } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { Product, ProductAttributeKey, ProductVariant, Review } from '@/types'
+import type { Product, ProductAttributeKey, Review } from '@/types'
 
 const RETURNS_SUMMARY =
   'Unused items in original packaging may be returned within 14 days of delivery. Contact us to start a return — see our Returns page for details.'
@@ -159,8 +160,10 @@ export function ProductPage() {
   const saved = savingsAmount(price, compareAt)
   const canAdd =
     selectedVariant != null && selectedVariant.stock > 0 && quantity > 0
-
-  const jsonLd = buildProductJsonLd(product, selectedVariant, primaryImage?.url)
+  const offerInStock =
+    selectedVariant != null
+      ? selectedVariant.stock > 0
+      : (variants[0]?.stock ?? 0) > 0
 
   return (
     <>
@@ -171,9 +174,15 @@ export function ProductPage() {
         url={`${store.seo.siteUrl}/product/${product.slug}`}
         type="product"
       />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      <ProductStructuredData
+        name={product.name}
+        description={product.short_description}
+        imageUrl={primaryImage?.url}
+        sku={selectedVariant?.sku}
+        url={`${store.seo.siteUrl}/product/${product.slug}`}
+        priceCurrency={store.currency.code}
+        price={price}
+        inStock={offerInStock}
       />
 
       <div className="section-pad container-eo pb-24 md:pb-16">
@@ -567,30 +576,4 @@ function ProductPageSkeleton() {
       </div>
     </div>
   )
-}
-
-function buildProductJsonLd(
-  product: Product,
-  variant: ProductVariant | null,
-  imageUrl?: string,
-) {
-  const price = variant?.price ?? product.variants?.[0]?.price ?? 0
-  const inStock = (variant?.stock ?? 0) > 0
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.name,
-    description: product.short_description,
-    image: imageUrl ? [imageUrl] : undefined,
-    sku: variant?.sku,
-    offers: {
-      '@type': 'Offer',
-      url: `${store.seo.siteUrl}/product/${product.slug}`,
-      priceCurrency: store.currency.code,
-      price,
-      availability: inStock
-        ? 'https://schema.org/InStock'
-        : 'https://schema.org/OutOfStock',
-    },
-  }
 }

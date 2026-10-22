@@ -32,7 +32,7 @@ export function InstagramStrip() {
             rel="noopener noreferrer"
             className="transition-colors duration-200 hover:text-accent"
           >
-            @emberandoak
+            {store.social.instagramHandle}
           </a>
         </h2>
       </div>

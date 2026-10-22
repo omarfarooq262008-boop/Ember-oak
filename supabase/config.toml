@@ -24,3 +24,10 @@ verify_jwt = false
 
 [functions.health]
 verify_jwt = false
+
+# Own Bearer/admin checks inside the function (platform JWT verify off).
+[functions.admin-refund]
+verify_jwt = false
+
+[functions.send-order-email]
+verify_jwt = false

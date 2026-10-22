@@ -96,6 +96,8 @@ export const store = {
 
   social: {
     instagram: 'https://instagram.com/emberandoak',
+    /** Display handle shown in the Instagram strip (replace before launch). */
+    instagramHandle: '@emberandoak',
     facebook: 'https://facebook.com/emberandoak',
     pinterest: 'https://pinterest.com/emberandoak',
   },

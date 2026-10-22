@@ -62,6 +62,15 @@ function Seo({
 
     if (url) {
       upsertMeta('og:url', url, 'property')
+      let canonical = document.head.querySelector<HTMLLinkElement>(
+        'link[rel="canonical"]',
+      )
+      if (!canonical) {
+        canonical = document.createElement('link')
+        canonical.setAttribute('rel', 'canonical')
+        document.head.appendChild(canonical)
+      }
+      canonical.setAttribute('href', url)
     }
 
     upsertMeta('twitter:card', 'summary_large_image')
@@ -75,6 +84,9 @@ function Seo({
     return () => {
       if (noindex) {
         document.head.querySelector('meta[name="robots"]')?.remove()
+      }
+      if (url) {
+        document.head.querySelector('link[rel="canonical"]')?.remove()
       }
     }
   }, [title, description, image, url, type, noindex])

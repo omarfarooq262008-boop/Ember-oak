@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
+import { NotFoundPage } from '@/pages/NotFoundPage'
 import { formatPKR } from '@/lib/format'
 import { setSentryOrderStage } from '@/lib/sentry/tags'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
@@ -11,15 +12,29 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 /**
  * Hosted fake checkout for PAYMENT_PROVIDER=mock.
  * Never holds the webhook secret — signs via mock-sign-payment edge function.
+ *
+ * Production: only reachable when VITE_PAYMENT_PROVIDER=mock (mirrors Edge secret).
+ * Dev: always available. Backend also refuses when PAYMENT_PROVIDER !== mock.
+ */
+function isMockCheckoutAllowed(): boolean {
+  if (import.meta.env.DEV) return true
+  const provider = (
+    import.meta.env.VITE_PAYMENT_PROVIDER as string | undefined
+  )
+    ?.trim()
+    .toLowerCase()
+  return provider === 'mock'
+}
+
+/**
+ * Hosted fake checkout for PAYMENT_PROVIDER=mock.
+ * Never holds the webhook secret — signs via mock-sign-payment edge function.
  */
 export function MockCheckoutPage() {
+  const allowed = isMockCheckoutAllowed()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const [busy, setBusy] = useState<'paid' | 'failed' | 'cancelled' | null>(null)
-
-  useEffect(() => {
-    setSentryOrderStage('mock_payment')
-  }, [])
 
   const orderNumber = params.get('order') ?? ''
   const amount = Number(params.get('amount') ?? 0)
@@ -31,6 +46,14 @@ export function MockCheckoutPage() {
     if (!Number.isFinite(amount) || amount <= 0) return '—'
     return currency === 'PKR' ? formatPKR(amount) : `${currency} ${amount}`
   }, [amount, currency])
+
+  useEffect(() => {
+    if (allowed) setSentryOrderStage('mock_payment')
+  }, [allowed])
+
+  if (!allowed) {
+    return <NotFoundPage />
+  }
 
   const signOutcome = async (outcome: 'paid' | 'failed' | 'cancelled') => {
     if (!orderNumber) {
