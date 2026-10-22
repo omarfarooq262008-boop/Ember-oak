@@ -8,7 +8,7 @@ Pre-launch status for a solo owner. See also [PLACEHOLDERS.md](./PLACEHOLDERS.md
 - [x] Edge Functions for order, discount, contact, newsletter, track, payments, health, refund, email
 - [x] Rate limits on Edge Functions; honeypots + min fill time on contact and newsletter
 - [x] Admin routes and `/sentry-test` behind `AdminGate` + `noindex`
-- [x] `/mock-checkout` `noindex`; production build returns 404 unless `VITE_PAYMENT_PROVIDER=mock`
+- [x] `/mock-checkout` `noindex`; page opens only when health reports `paymentProvider: mock` (404 otherwise)
 - [x] Mock card flow refused server-side when `PAYMENT_PROVIDER` ≠ `mock`
 - [x] CSP **Report-Only** (product structured data is Microdata — no inline JSON-LD script)
 - [x] Sentry client init (optional DSN); PII scrubbing
@@ -24,7 +24,7 @@ Pre-launch status for a solo owner. See also [PLACEHOLDERS.md](./PLACEHOLDERS.md
 |---------|--------|
 | **Domain** | Point custom domain on Vercel; set `VITE_SITE_URL` / `VITE_APP_URL` / Edge `APP_URL` |
 | **Resend** | Verify sending domain; set `RESEND_API_KEY`, `EMAIL_FROM`, `STORE_NOTIFY_EMAIL` |
-| **Real payment provider** | Implement provider in `_shared/payments.ts`; set `PAYMENT_PROVIDER` + webhook secret; clear `VITE_PAYMENT_PROVIDER=mock` |
+| **Real payment provider** | Implement provider in `_shared/payments.ts`; set `PAYMENT_PROVIDER` + webhook secret (health then stops advertising mock) |
 | **Legal review** | Replace drafts in Privacy/Terms; set `store.legal.needsLegalReview` to `false`; real company name |
 | **Placeholders** | Replace everything in [PLACEHOLDERS.md](./PLACEHOLDERS.md) (`store.ts` + Admin contact settings) |
 | **CSP enforce** | After clean Report-Only period, follow [CSP_ENFORCING.md](./CSP_ENFORCING.md) |
@@ -72,7 +72,7 @@ Run on **desktop and phone**. Use a test inbox. Prefer a staging project if poss
 
 4. **COD** — checkout COD → confirmation → email → Admin order shows awaiting fulfilment  
 5. **Bank transfer** — checkout bank → confirmation shows **your** bank details (not placeholders) → mark paid in Admin  
-6. **Card mock success** — only if `PAYMENT_PROVIDER=mock` and `VITE_PAYMENT_PROVIDER=mock`: pay → mock checkout → Paid → confirmation → email  
+6. **Card mock success** — only if `PAYMENT_PROVIDER=mock`: pay → mock checkout → Paid → confirmation → email  
 7. **Card mock failure** — Fail / Cancel on mock page → order stays pending/failed; customer can retry or contact  
 
 ### Discounts & tracking
@@ -90,7 +90,7 @@ Run on **desktop and phone**. Use a test inbox. Prefer a staging project if poss
 ### Safety net
 
 14. `/status` healthy; UptimeRobot green  
-15. Production: `/mock-checkout` is 404 when not mock; `/admin` and `/sentry-test` require admin  
+15. Production: `/mock-checkout` is 404 when `PAYMENT_PROVIDER` ≠ mock; `/admin` and `/sentry-test` require admin  
 16. View source / DevTools: no service role key; CSP Report-Only present  
 
 ## After launch day

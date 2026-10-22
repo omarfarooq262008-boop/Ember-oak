@@ -81,7 +81,7 @@ Set **`VITE_SITE_URL`** (and **`VITE_APP_URL`**) on Vercel so robots, sitemap, a
 |------|-------|------|----------------|
 | `supabase/functions/_shared/payments.ts` | ~161–217 | `TODO(Safepay|PayFast|XPay)` stubs | Real provider implementation when leaving mock |
 | Edge secret `PAYMENT_PROVIDER` | — | Still `mock` for demo | Real provider name + webhook secret |
-| `VITE_PAYMENT_PROVIDER` | `.env.example` | Optional public mirror | Set to `mock` only while mock checkout is intentional; unset/change when live so `/mock-checkout` 404s |
+| Edge `PAYMENT_PROVIDER` | Supabase secrets | `mock` for demo | Switch to real provider when live; `/mock-checkout` follows health `paymentProvider` |
 
 ---
 

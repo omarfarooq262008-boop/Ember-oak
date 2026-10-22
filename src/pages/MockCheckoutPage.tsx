@@ -6,6 +6,11 @@ import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { formatPKR } from '@/lib/format'
+import {
+  fetchPaymentProviderName,
+  resolveMockCheckoutAccess,
+  type MockCheckoutAccess,
+} from '@/lib/paymentProvider'
 import { setSentryOrderStage } from '@/lib/sentry/tags'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
@@ -13,28 +18,14 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase'
  * Hosted fake checkout for PAYMENT_PROVIDER=mock.
  * Never holds the webhook secret — signs via mock-sign-payment edge function.
  *
- * Production: only reachable when VITE_PAYMENT_PROVIDER=mock (mirrors Edge secret).
- * Dev: always available. Backend also refuses when PAYMENT_PROVIDER !== mock.
- */
-function isMockCheckoutAllowed(): boolean {
-  if (import.meta.env.DEV) return true
-  const provider = (
-    import.meta.env.VITE_PAYMENT_PROVIDER as string | undefined
-  )
-    ?.trim()
-    .toLowerCase()
-  return provider === 'mock'
-}
-
-/**
- * Hosted fake checkout for PAYMENT_PROVIDER=mock.
- * Never holds the webhook secret — signs via mock-sign-payment edge function.
+ * Visibility is gated by the public health.paymentProvider flag (server truth).
+ * mock-sign-payment still refuses unless PAYMENT_PROVIDER=mock.
  */
 export function MockCheckoutPage() {
-  const allowed = isMockCheckoutAllowed()
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const [busy, setBusy] = useState<'paid' | 'failed' | 'cancelled' | null>(null)
+  const [access, setAccess] = useState<MockCheckoutAccess>('loading')
 
   const orderNumber = params.get('order') ?? ''
   const amount = Number(params.get('amount') ?? 0)
@@ -48,10 +39,39 @@ export function MockCheckoutPage() {
   }, [amount, currency])
 
   useEffect(() => {
-    if (allowed) setSentryOrderStage('mock_payment')
-  }, [allowed])
+    let cancelled = false
+    void (async () => {
+      const { provider, error } = await fetchPaymentProviderName()
+      if (cancelled) return
+      setAccess(
+        resolveMockCheckoutAccess({
+          loading: false,
+          provider,
+          error,
+        }),
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
-  if (!allowed) {
+  useEffect(() => {
+    if (access === 'checkout') setSentryOrderStage('mock_payment')
+  }, [access])
+
+  if (access === 'loading') {
+    return (
+      <>
+        <Seo title="Mock checkout" noindex />
+        <div className="section-pad container-eo mx-auto max-w-md">
+          <p className="text-sm text-muted">Checking payment provider…</p>
+        </div>
+      </>
+    )
+  }
+
+  if (access === 'notfound') {
     return <NotFoundPage />
   }
 
@@ -103,9 +123,10 @@ export function MockCheckoutPage() {
           replace: true,
         })
       } else {
-        navigate(cancelUrl.startsWith('http') ? '/checkout?payment=' + outcome : cancelUrl, {
-          replace: true,
-        })
+        navigate(
+          cancelUrl.startsWith('http') ? '/checkout?payment=' + outcome : cancelUrl,
+          { replace: true },
+        )
       }
     } finally {
       setBusy(null)

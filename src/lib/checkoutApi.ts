@@ -27,6 +27,7 @@ export type CreateOrderResult =
       trackingToken: string
       idempotent?: boolean
       checkoutUrl?: string | null
+      paymentProvider?: string | null
       paymentReference?: string | null
     }
   | { ok: false; message: string; status?: number }
@@ -65,6 +66,7 @@ export async function createOrderRemote(
     trackingToken?: string
     idempotent?: boolean
     checkoutUrl?: string | null
+    paymentProvider?: string | null
     paymentReference?: string | null
   } | null
 
@@ -83,6 +85,7 @@ export async function createOrderRemote(
     trackingToken: body.trackingToken,
     idempotent: body.idempotent,
     checkoutUrl: body.checkoutUrl ?? null,
+    paymentProvider: body.paymentProvider ?? null,
     paymentReference: body.paymentReference ?? null,
   }
 }

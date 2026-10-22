@@ -3,9 +3,11 @@
  * Accepts GET, HEAD, POST; answers OPTIONS for CORS.
  * verify_jwt = false — no Authorization or apikey required.
  * Does not expose secrets, versions, or table names.
+ * Includes paymentProvider (name only) so the storefront can gate /mock-checkout.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
+import { getPaymentProviderName } from '../_shared/payments.ts'
 import {
   enforceRateLimit,
   getClientIp,
@@ -14,8 +16,15 @@ import {
 
 const CACHE_CONTROL = 'no-store'
 
+type HealthBody = {
+  status: 'ok' | 'degraded'
+  time: string
+  /** Harmless public flag — mirrors PAYMENT_PROVIDER name only. */
+  paymentProvider: string
+}
+
 function healthJson(
-  body: { status: 'ok' | 'degraded'; time: string } | null,
+  body: HealthBody | null,
   status: number,
   method: string,
 ): Response {
@@ -48,10 +57,11 @@ Deno.serve(async (req) => {
   }
 
   const time = new Date().toISOString()
+  const paymentProvider = getPaymentProviderName()
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!supabaseUrl || !serviceKey) {
-    return healthJson({ status: 'degraded', time }, 503, method)
+    return healthJson({ status: 'degraded', time, paymentProvider }, 503, method)
   }
 
   const admin = createClient(supabaseUrl, serviceKey)
@@ -72,10 +82,10 @@ Deno.serve(async (req) => {
     // Tiny read — proves DB connectivity without naming tables in the response.
     const { error } = await admin.from('settings').select('key').limit(1)
     if (error) {
-      return healthJson({ status: 'degraded', time }, 503, method)
+      return healthJson({ status: 'degraded', time, paymentProvider }, 503, method)
     }
-    return healthJson({ status: 'ok', time }, 200, method)
+    return healthJson({ status: 'ok', time, paymentProvider }, 200, method)
   } catch {
-    return healthJson({ status: 'degraded', time }, 503, method)
+    return healthJson({ status: 'degraded', time, paymentProvider }, 503, method)
   }
 })

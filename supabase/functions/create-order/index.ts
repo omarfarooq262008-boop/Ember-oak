@@ -6,7 +6,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts'
 import { corsHeaders, json } from '../_shared/cors.ts'
-import { getPaymentProvider } from '../_shared/payments.ts'
+import { getPaymentProvider, getPaymentProviderName } from '../_shared/payments.ts'
 import { sendTransactionalEmail } from '../_shared/email.ts'
 import {
   enforceRateLimit,
@@ -218,6 +218,8 @@ Deno.serve(async (req) => {
       trackingToken: result.tracking_token,
       idempotent: result.idempotent ?? false,
       checkoutUrl,
+      /** Public name only — lets the client know mock vs real without a VITE_ secret. */
+      paymentProvider: getPaymentProviderName(),
       paymentReference: orderRow?.payment_reference ?? null,
     })
   } catch (e) {
