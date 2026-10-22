@@ -47,7 +47,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client-17
-          pg_dump --version
+          /usr/lib/postgresql/17/bin/pg_dump --version
 
       - name: Dump database (public schema)
         env:
@@ -57,11 +57,15 @@ jobs:
           # Do not echo DATABASE_URL or any connection details.
           trap 'echo "::error::pg_dump failed. Check: client/server version mismatch, authentication (user/password/role), or network reachability to the database host. Connection string is not printed."' ERR
 
+          PG_DUMP=/usr/lib/postgresql/17/bin/pg_dump
+          "$PG_DUMP" --version
+
           STAMP=$(date -u +%Y%m%dT%H%M%SZ)
           OUT="ember-oak-backup-${STAMP}.sql"
 
           # public schema + data only. Skip Supabase-managed schemas the pooler user cannot read.
-          pg_dump \
+          # Explicit path so PATH cannot pick up an older system pg_dump (e.g. 16.x).
+          "$PG_DUMP" \
             --format=plain \
             --no-owner \
             --no-privileges \
