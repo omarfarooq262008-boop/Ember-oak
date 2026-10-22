@@ -54,6 +54,8 @@ export function ProductCard({ product, className }: ProductCardProps) {
             )}
             loading="lazy"
             decoding="async"
+            width={600}
+            height={750}
           />
         ) : null}
         {secondary ? (
@@ -65,6 +67,8 @@ export function ProductCard({ product, className }: ProductCardProps) {
               className="img-zoom"
               loading="lazy"
               decoding="async"
+              width={600}
+              height={750}
             />
           </span>
         ) : null}

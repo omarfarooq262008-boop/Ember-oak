@@ -222,9 +222,10 @@ export async function fetchRelatedProducts(
 
 export async function fetchApprovedReviews(
   productId: string,
+  limit = 20,
 ): Promise<Review[]> {
   if (requireSupabaseOrFallback() === 'local') {
-    return local.localGetReviews(productId)
+    return local.localGetReviews(productId).slice(0, limit)
   }
 
   const { data, error } = await client()
@@ -235,6 +236,7 @@ export async function fetchApprovedReviews(
     .eq('product_id', productId)
     .eq('is_approved', true)
     .order('created_at', { ascending: false })
+    .limit(limit)
 
   if (error) throw new Error(error.message)
   return (data ?? []).map((r) => mapReview(r as Record<string, unknown>))

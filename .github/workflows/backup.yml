@@ -1,0 +1,78 @@
+name: Database Backup
+
+# Weekly dump + manual run. Never on pull requests.
+on:
+  schedule:
+    # Mondays 03:15 UTC
+    - cron: '15 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: pg_dump and upload artifact
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify DATABASE_URL secret
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is missing. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "DATABASE_URL secret is present (value not printed)."
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump database (public + auth where permitted)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          OUT="ember-oak-backup-${STAMP}.sql"
+          # Do not echo DATABASE_URL. Schema + data for public; auth if role allows.
+          pg_dump \
+            --format=plain \
+            --no-owner \
+            --no-acl \
+            --schema=public \
+            --schema=auth \
+            --file="$OUT" \
+            "$DATABASE_URL" \
+            || {
+              echo "Full public+auth dump failed; retrying public schema only…"
+              pg_dump \
+                --format=plain \
+                --no-owner \
+                --no-acl \
+                --schema=public \
+                --file="$OUT" \
+                "$DATABASE_URL"
+            }
+          gzip -9 "$OUT"
+          ls -lh "${OUT}.gz"
+          echo "BACKUP_FILE=${OUT}.gz" >> "$GITHUB_ENV"
+
+      - name: Upload private artifact (30 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-backup
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 30
+          if-no-files-found: error

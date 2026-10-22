@@ -86,7 +86,10 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
                   <SoftImage
                     src={image.url}
                     alt={image.alt || `${productName} image ${index + 1}`}
+                    loading={index === 0 ? 'eager' : 'lazy'}
                     decoding="async"
+                    width={800}
+                    height={1000}
                   />
                 </div>
               </div>
@@ -105,7 +108,10 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
               src={active.url}
               alt={active.alt || productName}
               className="transition-transform duration-500 group-hover:scale-[1.03]"
+              loading="eager"
               decoding="async"
+              width={800}
+              height={1000}
             />
           </div>
           <span className="absolute bottom-3 right-3 rounded-(--radius-sm) border border-border bg-surface/95 px-2.5 py-1 text-xs text-muted backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">
@@ -146,6 +152,7 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
                   className="aspect-gallery w-16 object-cover sm:w-20"
                   width={80}
                   height={80}
+                  loading="lazy"
                   decoding="async"
                 />
               </button>

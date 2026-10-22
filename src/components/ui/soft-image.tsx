@@ -21,6 +21,7 @@ export function SoftImage({
   onLoad,
   onError,
   src,
+  loading = 'lazy',
   ...props
 }: SoftImageProps) {
   const [loaded, setLoaded] = useState(false)
@@ -45,6 +46,7 @@ export function SoftImage({
         {...props}
         src={resolvedSrc}
         alt={alt}
+        loading={loading}
         className={cn(
           'size-full object-cover transition-opacity duration-500 ease-out',
           loaded ? 'opacity-100' : 'opacity-0',

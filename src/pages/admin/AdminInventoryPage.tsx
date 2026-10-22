@@ -51,6 +51,7 @@ export function AdminInventoryPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [edits, setEdits] = useState<Record<string, { stock: string; reason: string }>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   const thresholdQuery = useQuery({
     queryKey: ['admin', 'inventory-settings'],
@@ -59,10 +60,11 @@ export function AdminInventoryPage() {
   })
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'inventory'],
-    queryFn: listInventory,
+    queryKey: ['admin', 'inventory', page],
+    queryFn: () => listInventory({ page, pageSize: 100 }),
     enabled: isSupabaseConfigured,
   })
+  const rows = data?.items ?? []
 
   const threshold = thresholdQuery.data?.lowStockThreshold ?? 5
 
@@ -120,7 +122,7 @@ export function AdminInventoryPage() {
             </tr>
           </AdminTableHead>
           <AdminTableBody>
-            {(data ?? []).map((row) => {
+            {rows.map((row) => {
               const low = row.stock <= threshold
               const edit = edits[row.variant_id] ?? {
                 stock: String(row.stock),
@@ -203,6 +205,28 @@ export function AdminInventoryPage() {
           </AdminTableBody>
         </AdminTable>
       )}
+
+      {rows.length > 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <p className="text-sm text-muted">Page {page}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!data?.hasMore || isLoading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }

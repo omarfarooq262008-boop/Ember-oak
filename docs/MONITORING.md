@@ -8,7 +8,7 @@ Click-by-click checklist for uptime, errors, deploys, and Supabase usage.
 |------|-----|
 | Store home | `https://emberandoak.pk/` (or your Vercel production URL) |
 | Status page | `https://emberandoak.pk/status` |
-| Health function | `https://ayxpzhmwmfukskqfgglb.supabase.co/functions/v1/health` |
+| Health function | `https://abjzzbqnhutzklvwgftu.supabase.co/functions/v1/health` |
 
 Alert email: use your ops inbox (for example the address in `STORE_NOTIFY_EMAIL`).
 
@@ -39,7 +39,7 @@ Alert email: use your ops inbox (for example the address in `STORE_NOTIFY_EMAIL`
 ### Monitor C — Health Edge Function
 
 1. **Friendly Name:** `Ember & Oak — health function`
-2. **URL:** `https://ayxpzhmwmfukskqfgglb.supabase.co/functions/v1/health`
+2. **URL:** `https://abjzzbqnhutzklvwgftu.supabase.co/functions/v1/health`
 3. **Monitor Type:** HTTP(s) — method **GET** (HEAD also works; no API key or Authorization header needed).
 4. Expect **HTTP 200** and a body like `{"status":"ok","time":"..."}`. Degraded DB returns **503** with `{"status":"degraded","time":"..."}`.
 5. Save.
@@ -92,7 +92,7 @@ The app sets lightweight tags `route` and `order_stage` (no personal data). Conf
 
 ## 4. Supabase usage alerts
 
-1. Open [https://supabase.com/dashboard](https://supabase.com/dashboard) → project **Ember & Oak** (`ayxpzhmwmfukskqfgglb`).
+1. Open [https://supabase.com/dashboard](https://supabase.com/dashboard) → project **Ember & Oak** (`abjzzbqnhutzklvwgftu`).
 2. Go to **Organization Settings → Billing** (or **Usage**).
 3. Set / confirm spend caps if available for your plan.
 4. Go to **Project Settings → Notifications** (or organization **Email notifications**).

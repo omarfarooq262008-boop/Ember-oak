@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 import {
@@ -14,11 +15,13 @@ import { isSupabaseConfigured, listContactMessages, markContactHandled } from '@
 
 export function AdminContactPage() {
   const qc = useQueryClient()
+  const [page, setPage] = useState(1)
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'contact'],
-    queryFn: listContactMessages,
+    queryKey: ['admin', 'contact', page],
+    queryFn: () => listContactMessages({ page, pageSize: 50 }),
     enabled: isSupabaseConfigured,
   })
+  const messages = data?.items ?? []
 
   const markHandled = async (id: string) => {
     try {
@@ -61,7 +64,7 @@ export function AdminContactPage() {
             </tr>
           </AdminTableHead>
           <AdminTableBody>
-            {(data ?? []).map((m) => (
+            {messages.map((m) => (
               <tr key={m.id} className={m.is_handled ? 'opacity-60' : undefined}>
                 <AdminTd>
                   <p className="font-medium">{m.name}</p>
@@ -85,6 +88,28 @@ export function AdminContactPage() {
           </AdminTableBody>
         </AdminTable>
       )}
+
+      {messages.length > 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <p className="text-sm text-muted">Page {page}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!data?.hasMore || isLoading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -44,6 +44,7 @@ function outboxIdFrom(ev: AppEventRow): string | null {
 
 export function AdminEventsPage() {
   const qc = useQueryClient()
+  const [page, setPage] = useState(1)
   const [filterId, setFilterId] = useState<(typeof EVENT_FILTERS)[number]['id']>(
     'all',
   )
@@ -53,8 +54,8 @@ export function AdminEventsPage() {
   )
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'events', activeFilter.type],
-    queryFn: () => listAppEvents(200, activeFilter.type),
+    queryKey: ['admin', 'events', activeFilter.type, page],
+    queryFn: () => listAppEvents(activeFilter.type, { page, pageSize: 50 }),
     enabled: isSupabaseConfigured,
   })
 
@@ -73,7 +74,7 @@ export function AdminEventsPage() {
     return <p className="text-sm text-muted">Supabase is not configured.</p>
   }
 
-  const events = data ?? []
+  const events = data?.items ?? []
   const emailFailures = events.filter(isEmailFailure)
 
   return (
@@ -94,7 +95,10 @@ export function AdminEventsPage() {
             variant={filterId === f.id ? 'primary' : 'secondary'}
             aria-pressed={filterId === f.id}
             className={cn(filterId === f.id && 'pointer-events-none')}
-            onClick={() => setFilterId(f.id)}
+            onClick={() => {
+              setPage(1)
+              setFilterId(f.id)
+            }}
           >
             {f.label}
           </Button>
@@ -196,6 +200,28 @@ export function AdminEventsPage() {
             </AdminTableBody>
           </AdminTable>
         )}
+
+        {events.length > 0 ? (
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <p className="text-sm text-muted">Page {page}</p>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!data?.hasMore || isLoading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        ) : null}
       </section>
     </div>
   )

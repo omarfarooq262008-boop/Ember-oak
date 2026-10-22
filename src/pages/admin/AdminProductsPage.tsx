@@ -20,6 +20,7 @@ import { archiveProduct, isSupabaseConfigured, listProducts } from '@/lib/admin/
 export function AdminProductsPage() {
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
+  const [page, setPage] = useState(1)
   const [archiveId, setArchiveId] = useState<string | null>(null)
   const [archiving, setArchiving] = useState(false)
   const qc = useQueryClient()
@@ -29,13 +30,15 @@ export function AdminProductsPage() {
   }, [])
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'products', debounced],
-    queryFn: () => listProducts(debounced),
+    queryKey: ['admin', 'products', debounced, page],
+    queryFn: () => listProducts(debounced, { page, pageSize: 50 }),
     enabled: isSupabaseConfigured,
   })
+  const products = data?.items ?? []
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault()
+    setPage(1)
     setDebounced(search.trim())
   }
 
@@ -98,7 +101,7 @@ export function AdminProductsPage() {
 
       {isLoading ? (
         <Skeleton className="h-64 w-full rounded-(--radius-card)" />
-      ) : (data ?? []).length === 0 ? (
+      ) : products.length === 0 ? (
         <div className="rounded-(--radius-card) border border-dashed border-border bg-surface p-10 text-center">
           <p className="font-medium text-text">No products yet</p>
           <p className="mt-1 text-sm text-muted">
@@ -123,13 +126,16 @@ export function AdminProductsPage() {
             </tr>
           </AdminTableHead>
           <AdminTableBody>
-            {(data ?? []).map((p) => (
+            {products.map((p) => (
               <tr key={p.id}>
                 <AdminTd>
                   {p.thumbnail_url ? (
                     <img
                       src={p.thumbnail_url}
                       alt=""
+                      width={48}
+                      height={48}
+                      loading="lazy"
                       className="size-12 rounded-(--radius-sm) object-cover"
                     />
                   ) : (
@@ -183,6 +189,28 @@ export function AdminProductsPage() {
           </AdminTableBody>
         </AdminTable>
       )}
+
+      {products.length > 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <p className="text-sm text-muted">Page {page}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!data?.hasMore || isLoading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      ) : null}
 
       <ConfirmDialog
         open={archiveId != null}

@@ -17,16 +17,18 @@ import { isSupabaseConfigured, listPendingReviews, moderateReview } from '@/lib/
 export function AdminReviewsPage() {
   const qc = useQueryClient()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     document.title = 'Reviews | Admin'
   }, [])
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'reviews'],
-    queryFn: listPendingReviews,
+    queryKey: ['admin', 'reviews', page],
+    queryFn: () => listPendingReviews({ page, pageSize: 50 }),
     enabled: isSupabaseConfigured,
   })
+  const reviews = data?.items ?? []
 
   const moderate = async (id: string, action: 'approve' | 'reject') => {
     setBusyId(id)
@@ -66,7 +68,7 @@ export function AdminReviewsPage() {
 
       {isLoading ? (
         <Skeleton className="h-64 w-full rounded-(--radius-card)" />
-      ) : (data ?? []).length === 0 ? (
+      ) : reviews.length === 0 ? (
         <div className="rounded-(--radius-card) border border-dashed border-border bg-surface p-10 text-center">
           <p className="font-medium text-text">No pending reviews</p>
           <p className="mt-1 text-sm text-muted">
@@ -85,7 +87,7 @@ export function AdminReviewsPage() {
             </tr>
           </AdminTableHead>
           <AdminTableBody>
-            {(data ?? []).map((r) => (
+            {reviews.map((r) => (
               <tr key={r.id}>
                 <AdminTd>
                   {r.products?.slug ? (
@@ -135,6 +137,28 @@ export function AdminReviewsPage() {
           </AdminTableBody>
         </AdminTable>
       )}
+
+      {reviews.length > 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <p className="text-sm text-muted">Page {page}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!data?.hasMore || isLoading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }

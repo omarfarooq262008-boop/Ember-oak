@@ -120,8 +120,24 @@ export type AdminProductListItem = AdminProductRow & {
   variant_count: number
 }
 
-export async function listProducts(search?: string): Promise<AdminProductListItem[]> {
+export type PageOpts = { page?: number; pageSize?: number }
+
+export type PagedResult<T> = { items: T[]; page: number; pageSize: number; hasMore: boolean }
+
+function pageBounds(opts: PageOpts = {}, defaultSize = 50) {
+  const page = Math.max(1, opts.page ?? 1)
+  const pageSize = Math.min(100, Math.max(1, opts.pageSize ?? defaultSize))
+  const from = (page - 1) * pageSize
+  const to = from + pageSize // exclusive end for hasMore (+1 fetch)
+  return { page, pageSize, from, to }
+}
+
+export async function listProducts(
+  search?: string,
+  opts: PageOpts = {},
+): Promise<PagedResult<AdminProductListItem>> {
   const client = requireClient()
+  const { page, pageSize, from, to } = pageBounds(opts, 50)
   let q = client
     .from('products')
     .select(
@@ -134,6 +150,7 @@ export async function listProducts(search?: string): Promise<AdminProductListIte
     )
     .is('archived_at', null)
     .order('updated_at', { ascending: false })
+    .range(from, to) // one extra row to detect hasMore
 
   if (search?.trim()) {
     const term = `%${search.trim()}%`
@@ -143,7 +160,11 @@ export async function listProducts(search?: string): Promise<AdminProductListIte
   const { data, error } = await q
   if (error) throw new AdminApiError(error.message)
 
-  return (data ?? []).map((row) => {
+  const rows = data ?? []
+  const hasMore = rows.length > pageSize
+  const pageRows = hasMore ? rows.slice(0, pageSize) : rows
+
+  const items = pageRows.map((row) => {
     const images = (row.product_images ?? []) as Array<{
       url: string
       is_primary: boolean
@@ -176,6 +197,8 @@ export async function listProducts(search?: string): Promise<AdminProductListIte
       variant_count: variants.length,
     }
   })
+
+  return { items, page, pageSize, hasMore }
 }
 
 export async function isSlugTaken(slug: string, excludeId?: string): Promise<boolean> {
@@ -452,8 +475,11 @@ export type InventoryRow = {
   is_active: boolean
 }
 
-export async function listInventory(): Promise<InventoryRow[]> {
+export async function listInventory(
+  opts: PageOpts = {},
+): Promise<PagedResult<InventoryRow>> {
   const client = requireClient()
+  const { page, pageSize, from, to } = pageBounds(opts, 100)
   const { data, error } = await client
     .from('product_variants')
     .select(
@@ -461,10 +487,11 @@ export async function listInventory(): Promise<InventoryRow[]> {
     )
     .is('products.archived_at', null)
     .order('sku', { ascending: true })
+    .range(from, to)
 
   if (error) throw new AdminApiError(error.message)
 
-  return (data ?? []).map((row) => {
+  const mapped = (data ?? []).map((row) => {
     const raw = row.products as { id: string; name: string } | { id: string; name: string }[]
     const p = Array.isArray(raw) ? raw[0] : raw
     return {
@@ -476,6 +503,13 @@ export async function listInventory(): Promise<InventoryRow[]> {
       is_active: Boolean(row.is_active),
     }
   })
+  const hasMore = mapped.length > pageSize
+  return {
+    items: hasMore ? mapped.slice(0, pageSize) : mapped,
+    page,
+    pageSize,
+    hasMore,
+  }
 }
 
 export async function adjustStock(
@@ -531,13 +565,17 @@ export type AdminOrderRow = {
   shipping_name: string
 }
 
-export async function listOrders(filters: OrderListFilters = {}): Promise<AdminOrderRow[]> {
+export async function listOrders(
+  filters: OrderListFilters = {},
+  opts: PageOpts = {},
+): Promise<PagedResult<AdminOrderRow>> {
   const client = requireClient()
+  const { page, pageSize, from, to } = pageBounds(opts, 50)
   let q = client
     .from('orders')
     .select('id, order_number, email, status, payment_method, total, created_at, shipping_name')
     .order('created_at', { ascending: false })
-    .limit(200)
+    .range(from, to)
 
   if (filters.status) q = q.eq('status', filters.status)
   if (filters.payment_method) q = q.eq('payment_method', filters.payment_method)
@@ -550,10 +588,17 @@ export async function listOrders(filters: OrderListFilters = {}): Promise<AdminO
 
   const { data, error } = await q
   if (error) throw new AdminApiError(error.message)
-  return (data ?? []).map((o) => ({
+  const rows = (data ?? []).map((o) => ({
     ...o,
     total: Number(o.total),
   })) as AdminOrderRow[]
+  const hasMore = rows.length > pageSize
+  return {
+    items: hasMore ? rows.slice(0, pageSize) : rows,
+    page,
+    pageSize,
+    hasMore,
+  }
 }
 
 export type AdminOrderDetail = AdminOrderRow & {
@@ -884,8 +929,11 @@ export type ReviewAdminRow = {
   products?: { name: string; slug: string } | null
 }
 
-export async function listPendingReviews(): Promise<ReviewAdminRow[]> {
+export async function listPendingReviews(
+  opts: PageOpts = {},
+): Promise<PagedResult<ReviewAdminRow>> {
   const client = requireClient()
+  const { page, pageSize, from, to } = pageBounds(opts, 50)
   const { data, error } = await client
     .from('reviews')
     .select(
@@ -894,9 +942,9 @@ export async function listPendingReviews(): Promise<ReviewAdminRow[]> {
     .eq('is_approved', false)
     .is('rejected_at', null)
     .order('created_at', { ascending: false })
-    .limit(100)
+    .range(from, to)
   if (error) throw new AdminApiError(error.message)
-  return (data ?? []).map((row) => {
+  const mapped = (data ?? []).map((row) => {
     const r = row as ReviewAdminRow & {
       products: { name: string; slug: string } | { name: string; slug: string }[] | null
     }
@@ -905,6 +953,13 @@ export async function listPendingReviews(): Promise<ReviewAdminRow[]> {
       prod == null ? null : Array.isArray(prod) ? (prod[0] ?? null) : prod
     return { ...r, products }
   })
+  const hasMore = mapped.length > pageSize
+  return {
+    items: hasMore ? mapped.slice(0, pageSize) : mapped,
+    page,
+    pageSize,
+    hasMore,
+  }
 }
 
 /** Approve or reject via SECURITY DEFINER RPC (no direct reviews UPDATE). */
@@ -937,15 +992,25 @@ export type ContactMessageRow = {
   handled_at: string | null
 }
 
-export async function listContactMessages(): Promise<ContactMessageRow[]> {
+export async function listContactMessages(
+  opts: PageOpts = {},
+): Promise<PagedResult<ContactMessageRow>> {
   const client = requireClient()
+  const { page, pageSize, from, to } = pageBounds(opts, 50)
   const { data, error } = await client
     .from('contact_messages')
     .select('id, name, email, phone, message, created_at, is_handled, handled_at')
     .order('created_at', { ascending: false })
-    .limit(200)
+    .range(from, to)
   if (error) throw new AdminApiError(error.message)
-  return (data ?? []) as ContactMessageRow[]
+  const rows = (data ?? []) as ContactMessageRow[]
+  const hasMore = rows.length > pageSize
+  return {
+    items: hasMore ? rows.slice(0, pageSize) : rows,
+    page,
+    pageSize,
+    hasMore,
+  }
 }
 
 export async function markContactHandled(id: string): Promise<void> {
@@ -1051,21 +1116,29 @@ export type AppEventRow = {
 }
 
 export async function listAppEvents(
-  limit = 100,
   eventType?: string | null,
-): Promise<AppEventRow[]> {
+  opts: PageOpts = {},
+): Promise<PagedResult<AppEventRow>> {
   const client = requireClient()
+  const { page, pageSize, from, to } = pageBounds(opts, 50)
   let query = client
     .from('app_events')
     .select('id, event_type, actor_id, payload, created_at')
     .order('created_at', { ascending: false })
-    .limit(limit)
+    .range(from, to)
   if (eventType) {
     query = query.eq('event_type', eventType)
   }
   const { data, error } = await query
   if (error) throw new AdminApiError(error.message)
-  return (data ?? []) as AppEventRow[]
+  const rows = (data ?? []) as AppEventRow[]
+  const hasMore = rows.length > pageSize
+  return {
+    items: hasMore ? rows.slice(0, pageSize) : rows,
+    page,
+    pageSize,
+    hasMore,
+  }
 }
 
 export async function listCategoriesForAdmin() {

@@ -21,15 +21,18 @@ import type { OrderStatus, PaymentMethod } from '@/types'
 export function AdminOrdersPage() {
   const [filters, setFilters] = useState<OrderListFilters>({})
   const [draft, setDraft] = useState<OrderListFilters>({})
+  const [page, setPage] = useState(1)
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin', 'orders', filters],
-    queryFn: () => listOrders(filters),
+    queryKey: ['admin', 'orders', filters, page],
+    queryFn: () => listOrders(filters, { page, pageSize: 50 }),
     enabled: isSupabaseConfigured,
   })
+  const orders = data?.items ?? []
 
   const apply = (e: FormEvent) => {
     e.preventDefault()
+    setPage(1)
     setFilters({ ...draft })
   }
 
@@ -151,7 +154,7 @@ export function AdminOrdersPage() {
             </tr>
           </AdminTableHead>
           <AdminTableBody>
-            {(data ?? []).map((o) => (
+            {orders.map((o) => (
               <tr key={o.id}>
                 <AdminTd>
                   <Link
@@ -173,6 +176,28 @@ export function AdminOrdersPage() {
           </AdminTableBody>
         </AdminTable>
       )}
+
+      {orders.length > 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <p className="text-sm text-muted">Page {page}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!data?.hasMore || isLoading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }

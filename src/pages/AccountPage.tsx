@@ -59,6 +59,10 @@ export function AccountPage() {
 
   const [addresses, setAddresses] = useState<AddressRow[]>([])
   const [orders, setOrders] = useState<OrderRow[]>([])
+  const [ordersPage, setOrdersPage] = useState(1)
+  const [ordersHasMore, setOrdersHasMore] = useState(false)
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const ORDERS_PAGE_SIZE = 20
   const { ids: wishlistIds, toggle } = useWishlist()
   const { data: wishProducts = [] } = useProductsByIds(wishlistIds)
 
@@ -78,15 +82,36 @@ export function AccountPage() {
       )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(50)
       .then(({ data }) => setAddresses((data as AddressRow[]) ?? []))
-
-    void supabase
-      .from('orders')
-      .select('id, order_number, status, total, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => setOrders((data as OrderRow[]) ?? []))
   }, [user?.id])
+
+  useEffect(() => {
+    if (!user?.id || !supabase) return
+    let cancelled = false
+    setOrdersLoading(true)
+    const from = (ordersPage - 1) * ORDERS_PAGE_SIZE
+    const to = from + ORDERS_PAGE_SIZE // +1 via range inclusive end
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from('orders')
+          .select('id, order_number, status, total, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+        if (cancelled) return
+        const rows = (data as OrderRow[]) ?? []
+        setOrdersHasMore(rows.length > ORDERS_PAGE_SIZE)
+        setOrders(rows.length > ORDERS_PAGE_SIZE ? rows.slice(0, ORDERS_PAGE_SIZE) : rows)
+      } finally {
+        if (!cancelled) setOrdersLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id, ordersPage])
 
   if (loading) {
     return (
@@ -240,6 +265,29 @@ export function AccountPage() {
                   ))}
                 </ul>
               )}
+              {orders.length > 0 ? (
+                <div className="flex items-center justify-between gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={ordersPage <= 1 || ordersLoading}
+                    onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <p className="text-sm text-muted">Page {ordersPage}</p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!ordersHasMore || ordersLoading}
+                    onClick={() => setOrdersPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              ) : null}
               <p className="text-sm text-muted">
                 Placed as guest?{' '}
                 <Link to="/track-order" className="underline">
