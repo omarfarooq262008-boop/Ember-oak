@@ -1,8 +1,101 @@
 # Ember & Oak
 
-Premium home fragrance and homeware storefront for Pakistan — React, TypeScript, Tailwind CSS v4, shadcn-style UI, and Supabase.
+Premium home fragrance and homeware storefront for Pakistan — a portfolio demo with a real checkout flow, admin panel, and mocked card payments.
 
-## Quick start
+**Live demo:** [https://ember-oak-beige.vercel.app](https://ember-oak-beige.vercel.app)
+
+> **Demo note:** Card payments use a mock provider. No real money is charged. Stock, orders, and email are real against Supabase for the demo project.
+
+## Screenshots
+
+| Home | Shop | Product |
+|:----:|:----:|:-------:|
+| ![Home](docs/screenshots/home.png) | ![Shop](docs/screenshots/shop.png) | ![Product](docs/screenshots/product.png) |
+
+| Cart | Checkout | Mock checkout |
+|:----:|:--------:|:-------------:|
+| ![Cart](docs/screenshots/cart.png) | ![Checkout](docs/screenshots/checkout.png) | ![Mock checkout](docs/screenshots/mock-checkout.png) |
+
+Regenerate with `npm run screenshots` (set `QA_BASE_URL` to override the live site).
+
+## Features
+
+- Catalog: categories, collections, filters, search, bestsellers, related products
+- Cart, wishlist, guest + signed-in checkout (COD, bank transfer, mock card)
+- Server-side order creation with stock locking and price recalculation
+- Order confirmation, tracking, transactional email outbox
+- Admin: products, inventory, orders, discounts, reviews, messages, newsletter, settings
+- Contact form, newsletter, SEO (canonical, OG, robots, sitemap)
+- Error monitoring (Sentry, deferred load) and CI on every push
+
+## Tech stack
+
+- **Frontend:** React 19, TypeScript, Vite 8, Tailwind CSS v4, React Router 7, TanStack Query
+- **UI:** Radix primitives, Lucide, Sonner, Embla carousel
+- **Backend:** Supabase (Postgres + Auth + Storage + Edge Functions)
+- **Hosting:** Vercel
+- **Observability:** Sentry (optional), UptimeRobot (optional)
+- **Email:** Resend via Edge Functions / outbox
+- **Testing:** Vitest, Playwright (live QA), Lighthouse scripts
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Browser["Browser\n(React + Vite app)"]
+  Vercel["Vercel\n(static hosting + CSP headers)"]
+  SB_DB["Supabase Postgres\n(public + auth)"]
+  SB_Auth["Supabase Auth"]
+  SB_Storage["Supabase Storage\n(product-images)"]
+  Edge["Supabase Edge Functions\n(create-order, payments,\nemail, health, …)"]
+  Resend["Resend\n(transactional email)"]
+  Sentry["Sentry\n(errors)"]
+  Uptime["UptimeRobot\n(uptime checks)"]
+  GitHub["GitHub\n(CI, Dependabot, weekly DB backup)"]
+
+  Browser --> Vercel
+  Browser --> SB_Auth
+  Browser --> SB_DB
+  Browser --> SB_Storage
+  Browser --> Edge
+  Browser --> Sentry
+  Vercel --> Browser
+  Edge --> SB_DB
+  Edge --> Resend
+  Uptime --> Vercel
+  Uptime --> Edge
+  GitHub --> Vercel
+  GitHub --> SB_DB
+```
+
+Full write-up: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Security highlights
+
+- **Row Level Security** on catalog, orders, profiles, admin tables — anon clients cannot escalate
+- **Atomic orders with stock locking** via Edge Function / RPC (not browser inserts)
+- **Rate limiting** on checkout and sensitive public endpoints
+- **Signed webhooks** for payment status (mock provider verifies signatures in demo mode)
+- **Server-side price calculation** — cart totals are recomputed from DB prices and discounts
+
+## Testing and CI
+
+| Command | Purpose |
+|---------|---------|
+| `npm run lint` | oxlint |
+| `npm run typecheck` | `tsc -b` |
+| `npm test` | Vitest unit tests |
+| `npm run build` | SEO gen + typecheck + production bundle |
+| `npm run test:e2e` | Playwright |
+| `npm run test:qa` | Live QA harness against `QA_BASE_URL` |
+| `npm run lighthouse:qa` | Mobile Lighthouse (home, shop, product) |
+| `npm run images:check` | Request every demo image URL |
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, typecheck, tests, and build on every push/PR to `main`.
+
+Performance notes: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+
+## Run it locally
 
 ```bash
 npm install
@@ -10,98 +103,31 @@ cp .env.example .env   # optional — works offline with local catalog
 npm run dev
 ```
 
-Without Supabase env vars the app runs on the **local demo catalog** (`src/data/catalog.ts`): 5 categories, 3 collections, 24 products, 3 discount codes (`WELCOME10`, `EMBER500`, `FREESHIP`). Cart, checkout, contact, and newsletter persist in `localStorage`.
+Without Supabase env vars the app uses the **local demo catalog** (`src/data/catalog.ts`). Cart, checkout, contact, and newsletter persist in `localStorage`.
 
-## Store configuration
+With Supabase:
 
-Edit **one file**: [`src/config/store.ts`](src/config/store.ts) — name, delivery rules, payments, support contacts, announcement, “why us” points, SEO.
+1. Apply migrations under `supabase/migrations/`, then `supabase/seed.sql`
+2. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env`
+3. Deploy Edge Functions (`create-order`, payments, email, …) and set function secrets
+4. Never put the service role key in `VITE_*` vars
 
-Design tokens are documented in [`src/config/design.md`](src/config/design.md).
+Store copy and delivery rules live in [`src/config/store.ts`](src/config/store.ts).
 
-## Supabase setup
+### Demo data reset
 
-1. Create a project (or use the linked one).
-2. Run SQL in order:
-   - `supabase/migrations/20260316000001_init_schema.sql`
-   - `supabase/seed.sql`
-3. Set secrets for Edge Functions (Dashboard → Edge Functions → Secrets):
-   - `SUPABASE_SERVICE_ROLE_KEY` (auto-provided in hosted functions)
-   - Never put the service role key in `VITE_*` vars.
-4. Deploy `supabase/functions/create-order`.
-5. Frontend `.env`:
+After QA or demos leave junk orders behind, run [`supabase/demo_reset.sql`](supabase/demo_reset.sql) manually (see comments at the top of that file). Exact steps are listed at the end of this README’s deploy notes in the agent response / below:
 
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-```
+1. Open the Supabase Dashboard → **SQL Editor**
+2. Paste the full contents of `supabase/demo_reset.sql`
+3. Run it (it is wrapped in `BEGIN` … `COMMIT`)
+4. Or via CLI: `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/demo_reset.sql`
 
-### Security model
+It clears test commerce/CRM noise and resets stock to seed values; it keeps catalog, discounts, settings, and user accounts.
 
-- RLS on every table; public reads only active catalog + approved reviews.
-- Customers read only their own orders / addresses / wishlists.
-- `is_admin` on `profiles` cannot be self-escalated.
-- Orders are **not** inserted from the browser — use `create-order` (Zod validation, server-side price recompute, atomic stock decrement, discount validation, idempotency key, rate limit).
-- Card payments stay `pending_payment` until a verified provider webhook marks them paid (mock provider for now).
-- Security headers (CSP Report-Only, HSTS, frame deny, etc.) live in [`vercel.json`](vercel.json). When adding a real payment provider, allow their checkout origin in CSP `form-action` and `connect-src` (and `frame-src` if they use an iframe checkout). When switching the header from `Content-Security-Policy-Report-Only` to enforcing `Content-Security-Policy`, add `upgrade-insecure-requests` back (browsers ignore that directive in report-only mode).
+## Image tooling
 
-## Scripts
-
-| Command             | Description                     |
-|---------------------|---------------------------------|
-| `npm run dev`       | Vite dev server                 |
-| `npm run lint`      | Code linting with oxlint        |
-| `npm run typecheck` | Type check without emitting     |
-| `npm test`          | Run Vitest test suite           |
-| `npm run build`     | SEO generation + tsc + vite     |
-| `npm run preview`   | Preview production build        |
-
-## Deployment and checks
-
-### Automated CI pipeline
-Every push and pull request targeting `main` automatically runs `.github/workflows/ci.yml`:
-1. **Dependency installation:** `npm ci` with cached npm dependencies.
-2. **Linting:** `npm run lint` (oxlint).
-3. **TypeScript validation:** `npm run typecheck` (`tsc -b`).
-4. **Unit tests:** `npm test` (`vitest run`).
-5. **Production build:** `npm run build` (with placeholder environment variables to verify bundling passes without secrets).
-
-Any failure halts the pipeline and blocks the deployment.
-
-### Running checks locally
-To verify your work before pushing to GitHub:
 ```bash
-npm run lint         # Fast code linting
-npm run typecheck    # Strict TypeScript checks
-npm test             # Run all unit tests
-npm run build        # Test production build bundle
+npm run images:optimize   # WebP srcset + compressed JPG/OG
+npm run images:check      # Fail on missing/broken image URLs
 ```
-
-### Database testing workflow
-`.github/workflows/db-tests.yml` provides a manual test suite (`workflow_dispatch` only) for SQL test files in `supabase/tests/`. It requires the `TEST_DATABASE_URL` secret and safety guards guarantee it will never execute against production databases.
-
-## Project structure
-
-```
-src/
-  config/        store.ts + design tokens doc
-  components/    ui, layout, home, product, cart, search, seo
-  contexts/      cart + wishlist
-  data/          local catalog seed
-  hooks/
-  lib/           catalog queries, format, supabase, orders, pakistan
-  pages/
-supabase/
-  migrations/    schema + RLS
-  seed.sql
-  functions/     create-order
-```
-
-## Demo discount codes
-
-- `WELCOME10` — 10% off, min PKR 3,000
-- `EMBER500` — PKR 500 off, min PKR 5,000
-- `FREESHIP` — PKR 250 off (covers flat delivery)
-
-## Legal
-
-Static legal pages are drafts marked for legal review in `store.legal`. Replace support placeholders and bank details before launch.

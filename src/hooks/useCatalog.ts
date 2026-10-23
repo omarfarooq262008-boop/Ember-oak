@@ -68,7 +68,7 @@ export function useProductsByIds(ids: string[]) {
   })
 }
 
-export function useNewest(limit = 24) {
+export function useNewest(limit = 12) {
   return useQuery({
     queryKey: ['products', 'newest', limit],
     queryFn: () => fetchNewest(limit),

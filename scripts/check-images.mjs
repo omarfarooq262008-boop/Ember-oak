@@ -81,6 +81,27 @@ function extractFromFile(relPath) {
 
 for (const src of sources) extractFromFile(src)
 
+// Also verify every raster in public/images (+ responsive WebP companions)
+const imagesDir = path.join(root, 'public', 'images')
+const WIDTHS = [480, 800, 1200, 1920]
+if (fs.existsSync(imagesDir)) {
+  for (const file of fs.readdirSync(imagesDir)) {
+    if (!/\.(jpe?g|png|webp|svg)$/i.test(file)) continue
+    addRaw(`/images/${file}`, 'public/images')
+    if (/\.(jpe?g|png)$/i.test(file)) {
+      const base = file.replace(/\.(jpe?g|png)$/i, '')
+      addRaw(`/images/${base}.webp`, `companion of ${file}`)
+      for (const w of WIDTHS) {
+        const companion = path.join(imagesDir, `${base}-${w}.webp`)
+        if (fs.existsSync(companion)) {
+          addRaw(`/images/${base}-${w}.webp`, `companion of ${file}`)
+        }
+      }
+    }
+  }
+}
+addRaw('/og-default.jpg', 'public/og-default.jpg')
+
 async function checkUrl(url) {
   if (url.startsWith('/')) {
     const filePath = path.join(root, 'public', url.replace(/^\//, ''))

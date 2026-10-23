@@ -56,6 +56,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
             decoding="async"
             width={600}
             height={750}
+            sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
           />
         ) : null}
         {secondary ? (
@@ -69,6 +70,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
               decoding="async"
               width={600}
               height={750}
+              sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
             />
           </span>
         ) : null}

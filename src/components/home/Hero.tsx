@@ -4,6 +4,7 @@ import { SoftImage } from '@/components/ui/soft-image'
 import { Button } from '@/components/ui/button'
 import { store } from '@/config/store'
 import { heroImage } from '@/config/media'
+import { HERO_IMAGE } from '@/lib/responsiveImage'
 
 const HEADLINE = 'Rooms that hold the evening'
 const SUPPORT_MAX = 140
@@ -29,8 +30,9 @@ export function Hero() {
             loading="eager"
             fetchPriority="high"
             decoding="async"
-            width={1920}
-            height={1080}
+            width={HERO_IMAGE.width}
+            height={HERO_IMAGE.height}
+            sizes={HERO_IMAGE.sizes}
           />
         </div>
         <div

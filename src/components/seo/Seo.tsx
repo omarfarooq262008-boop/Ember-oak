@@ -39,7 +39,9 @@ function Seo({
 }: SeoProps) {
   useEffect(() => {
     const siteName = store.name
-    const documentTitle = title ? `${title} | ${siteName}` : siteName
+    const documentTitle = title
+      ? `${title} | ${siteName}`
+      : store.seo.defaultTitle
     document.title = documentTitle
 
     upsertMeta('og:site_name', siteName, 'property')
@@ -47,10 +49,11 @@ function Seo({
     upsertMeta('twitter:title', documentTitle)
     upsertMeta('og:type', type, 'property')
 
-    if (description) {
-      upsertMeta('description', description)
-      upsertMeta('og:description', description, 'property')
-      upsertMeta('twitter:description', description)
+    const resolvedDescription = description ?? store.seo.defaultDescription
+    if (resolvedDescription) {
+      upsertMeta('description', resolvedDescription)
+      upsertMeta('og:description', resolvedDescription, 'property')
+      upsertMeta('twitter:description', resolvedDescription)
     }
 
     const ogImage = image
@@ -91,7 +94,7 @@ function Seo({
         document.head.querySelector('link[rel="canonical"]')?.remove()
       }
     }
-  }, [title, description, image, url, type, noindex])
+  }, [title, description, image, url, type, noindex]) // store.seo defaults are compile-time constants
 
   return null
 }

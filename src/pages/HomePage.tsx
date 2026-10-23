@@ -12,8 +12,7 @@ export function HomePage() {
   return (
     <>
       <Seo
-        title={store.tagline}
-        description={store.description}
+        description={store.seo.defaultDescription}
         url={store.seo.siteUrl}
         image={store.seo.defaultOgImage}
       />

@@ -87,9 +87,11 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
                     src={image.url}
                     alt={image.alt || `${productName} image ${index + 1}`}
                     loading={index === 0 ? 'eager' : 'lazy'}
+                    fetchPriority={index === 0 ? 'high' : undefined}
                     decoding="async"
                     width={800}
                     height={1000}
+                    sizes="(min-width: 768px) 50vw, 100vw"
                   />
                 </div>
               </div>
@@ -109,9 +111,11 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
               alt={active.alt || productName}
               className="transition-transform duration-500 group-hover:scale-[1.03]"
               loading="eager"
+              fetchPriority="high"
               decoding="async"
               width={800}
               height={1000}
+              sizes="(min-width: 768px) 50vw, 100vw"
             />
           </div>
           <span className="absolute bottom-3 right-3 rounded-(--radius-sm) border border-border bg-surface/95 px-2.5 py-1 text-xs text-muted backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">

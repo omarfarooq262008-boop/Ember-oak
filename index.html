@@ -3,14 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- LCP hero: preload WebP with responsive hints; never lazy-load this image -->
     <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@700;800&display=swap"
+      rel="preload"
+      as="image"
+      type="image/webp"
+      href="/images/hero-1200.webp"
+      imagesrcset="/images/hero-480.webp 480w, /images/hero-800.webp 800w, /images/hero-1200.webp 1200w, /images/hero-1920.webp 1920w"
+      imagesizes="100vw"
+      fetchpriority="high"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ember &amp; Oak</title>
+    <meta
+      name="description"
+      content="Premium home fragrance and homeware — candles, diffusers, ceramics, and throws — for design-conscious shoppers across Pakistan. Demo storefront; payments are mocked."
+    />
+    <meta property="og:site_name" content="Ember &amp; Oak" />
+    <meta
+      property="og:title"
+      content="Ember &amp; Oak — Fragrance &amp; form for considered homes"
+    />
+    <meta
+      property="og:description"
+      content="Premium home fragrance and homeware — candles, diffusers, ceramics, and throws — for design-conscious shoppers across Pakistan."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:image"
+      content="https://ember-oak-beige.vercel.app/og-default.jpg"
+    />
+    <meta property="og:url" content="https://ember-oak-beige.vercel.app/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Ember &amp; Oak — Fragrance &amp; form for considered homes"
+    />
+    <meta
+      name="twitter:description"
+      content="Premium home fragrance and homeware — candles, diffusers, ceramics, and throws — for design-conscious shoppers across Pakistan."
+    />
+    <meta
+      name="twitter:image"
+      content="https://ember-oak-beige.vercel.app/og-default.jpg"
+    />
+    <title>Ember &amp; Oak — Fragrance &amp; form for considered homes</title>
   </head>
   <body>
     <div id="root"></div>

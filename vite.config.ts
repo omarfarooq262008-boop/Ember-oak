@@ -133,13 +133,33 @@ export default defineConfig(({ mode }) => {
       ),
     },
     build: {
+      // Do not modulepreload heavy deferred vendors — lets LCP image win the network.
+      modulePreload: {
+        resolveDependencies(_filename, deps) {
+          return deps.filter(
+            (dep) =>
+              !dep.includes('supabase') &&
+              !dep.includes('sentry') &&
+              !dep.includes('Admin'),
+          )
+        },
+      },
       rollupOptions: {
         output: {
           manualChunks(id) {
+            // Only split node_modules — never force app routes into a shared chunk
+            // (that pulled React into an "admin" bundle and modulepreloaded it on every page).
             if (id.includes('node_modules')) {
+              if (id.includes('@sentry')) return 'sentry'
               if (id.includes('@supabase')) return 'supabase'
               if (id.includes('react-router')) return 'router'
-              if (id.includes('react-dom') || id.includes('/react/')) return 'react'
+              if (
+                id.includes('react-dom') ||
+                id.includes('/react/') ||
+                id.includes('\\react\\')
+              ) {
+                return 'react'
+              }
             }
           },
         },

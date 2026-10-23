@@ -162,7 +162,7 @@ export async function fetchBestsellers(limit = 8): Promise<Product[]> {
   return (data ?? []).map((r) => mapProduct(r as never))
 }
 
-export async function fetchNewest(limit = 24): Promise<Product[]> {
+export async function fetchNewest(limit = 12): Promise<Product[]> {
   if (requireSupabaseOrFallback() === 'local') {
     return local
       .localListProducts({ sort: 'newest', page: 1, pageSize: limit })

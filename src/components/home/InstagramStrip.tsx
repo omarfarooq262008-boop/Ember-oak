@@ -59,6 +59,9 @@ export function InstagramStrip() {
               className="img-zoom"
               loading="lazy"
               decoding="async"
+              width={480}
+              height={480}
+              sizes="(min-width: 768px) 14rem, 42vw"
             />
             <span
               className="pointer-events-none absolute inset-0 bg-primary/0 transition-colors duration-300 group-hover:bg-primary/10"

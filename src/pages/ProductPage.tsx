@@ -87,6 +87,32 @@ export function ProductPage() {
   const primaryImage =
     product?.images?.find((i) => i.is_primary) ?? product?.images?.[0]
 
+  // Preload the product LCP image (WebP when local) once the slug resolves.
+  useEffect(() => {
+    if (!primaryImage?.url?.startsWith('/images/')) return
+    const base = primaryImage.url.replace(/\.(jpe?g|png|webp)$/i, '')
+    const href = `${base}-800.webp`
+    const existing = document.head.querySelector(
+      `link[rel="preload"][href="${href}"]`,
+    )
+    if (existing) return
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'image'
+    link.type = 'image/webp'
+    link.href = href
+    link.setAttribute(
+      'imagesrcset',
+      `${base}-480.webp 480w, ${base}-800.webp 800w, ${base}-1200.webp 1200w`,
+    )
+    link.setAttribute('imagesizes', '(min-width: 768px) 50vw, 100vw')
+    link.fetchPriority = 'high'
+    document.head.appendChild(link)
+    return () => {
+      link.remove()
+    }
+  }, [primaryImage?.url])
+
   const handleSelect = useCallback(
     (key: ProductAttributeKey, value: string) => {
       setSelection((prev) => {

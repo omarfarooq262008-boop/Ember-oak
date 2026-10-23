@@ -106,6 +106,10 @@ export const store = {
     siteUrl:
       (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') ||
       'https://emberandoak.pk',
+    /** Brand-first title for link previews (WhatsApp / Instagram / Slack). */
+    defaultTitle: 'Ember & Oak — Fragrance & form for considered homes',
+    defaultDescription:
+      'Premium home fragrance and homeware — candles, diffusers, ceramics, and throws — for design-conscious shoppers across Pakistan. Demo storefront; card payments are mocked.',
     defaultOgImage: '/og-default.jpg',
   },
 

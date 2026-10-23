@@ -85,6 +85,9 @@ export function FeaturedCollections() {
                         className="img-zoom"
                         loading="lazy"
                         decoding="async"
+                        width={1200}
+                        height={750}
+                        sizes="(min-width: 768px) 33vw, 100vw"
                       />
                     ) : (
                       <div className="size-full bg-border" aria-hidden />

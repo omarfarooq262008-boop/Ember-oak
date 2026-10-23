@@ -1,15 +1,30 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 
-import { AdminGate } from '@/components/admin/AdminGate'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { RootLayout } from '@/components/layout/RootLayout'
-import { CartPage } from '@/pages/CartPage'
-import { CheckoutPage } from '@/pages/CheckoutPage'
 import { HomePage } from '@/pages/HomePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
-import { ProductPage } from '@/pages/ProductPage'
-import { ShopPage } from '@/pages/ShopPage'
+
+const AdminGate = lazy(() =>
+  import('@/components/admin/AdminGate').then((m) => ({ default: m.AdminGate })),
+)
+const AdminLayout = lazy(() =>
+  import('@/components/admin/AdminLayout').then((m) => ({
+    default: m.AdminLayout,
+  })),
+)
+const CartPage = lazy(() =>
+  import('@/pages/CartPage').then((m) => ({ default: m.CartPage })),
+)
+const CheckoutPage = lazy(() =>
+  import('@/pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage })),
+)
+const ProductPage = lazy(() =>
+  import('@/pages/ProductPage').then((m) => ({ default: m.ProductPage })),
+)
+const ShopPage = lazy(() =>
+  import('@/pages/ShopPage').then((m) => ({ default: m.ShopPage })),
+)
 
 /** Secondary / admin routes — split out of the main storefront chunk. */
 const AboutDemoPage = lazy(() =>

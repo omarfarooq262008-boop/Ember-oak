@@ -1,12 +1,9 @@
 import * as Sentry from '@sentry/react'
 
 import { scrubBreadcrumb, scrubEvent } from '@/lib/sentry/scrub'
+import { isSentryStarted, markSentryStarted } from '@/lib/sentry/started'
 
-let started = false
-
-export function isSentryStarted(): boolean {
-  return started
-}
+export { isSentryStarted }
 
 /**
  * Initialise Sentry when VITE_SENTRY_DSN is set.
@@ -18,7 +15,7 @@ export function isSentryStarted(): boolean {
 export function initSentry(): boolean {
   const dsn = (import.meta.env.VITE_SENTRY_DSN as string | undefined)?.trim()
   if (!dsn) {
-    started = false
+    markSentryStarted(false)
     return false
   }
 
@@ -60,6 +57,6 @@ export function initSentry(): boolean {
     },
   })
 
-  started = true
+  markSentryStarted(true)
   return true
 }

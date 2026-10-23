@@ -6,7 +6,7 @@ vi.mock('@sentry/react', () => ({
   setTag: (...args: unknown[]) => setTag(...args),
 }))
 
-vi.mock('@/lib/sentry/init', () => ({
+vi.mock('@/lib/sentry/started', () => ({
   isSentryStarted: () => true,
 }))
 
@@ -19,12 +19,16 @@ describe('sentry tags', () => {
   it('sets a path-only route tag without query strings', async () => {
     const { setSentryRouteTag } = await import('./tags')
     setSentryRouteTag('/track-order?token=secret')
-    expect(setTag).toHaveBeenCalledWith('route', '/track-order')
+    await vi.waitFor(() => {
+      expect(setTag).toHaveBeenCalledWith('route', '/track-order')
+    })
   })
 
   it('sets a sanitized order_stage tag', async () => {
     const { setSentryOrderStage } = await import('./tags')
     setSentryOrderStage('placing_order')
-    expect(setTag).toHaveBeenCalledWith('order_stage', 'placing_order')
+    await vi.waitFor(() => {
+      expect(setTag).toHaveBeenCalledWith('order_stage', 'placing_order')
+    })
   })
 })
