@@ -14,11 +14,20 @@ node_modules
 .env
 .env.local
 .env.*.local
+.env.test
 
 # Build / deploy
 dist
 dist-ssr
 .vercel
+
+# Playwright / live QA artifacts (report + failure screenshots stay tracked under docs/)
+test-results/
+playwright-report/
+docs/qa-results.json
+docs/qa-checks.json
+docs/qa-lighthouse.json
+docs/qa-orders.json
 
 # Supabase CLI local cache
 supabase/.temp/
