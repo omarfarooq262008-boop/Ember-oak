@@ -44,11 +44,13 @@ export function CheckoutPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const idempotencyKey = useRef(
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `idem_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-  )
+  const idempotencyKey = useRef<string | null>(null)
+  if (idempotencyKey.current == null) {
+    idempotencyKey.current =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `idem_${performance.now().toString(36)}`
+  }
   const [form, setForm] = useState<FormState>({
     email: '',
     phone: '',
@@ -126,7 +128,7 @@ export function CheckoutPage() {
         variantId: item.variantId,
         quantity: item.quantity,
       })),
-      idempotencyKey: idempotencyKey.current,
+      idempotencyKey: idempotencyKey.current!,
     })
 
     setSubmitting(false)

@@ -116,9 +116,11 @@ export function ShopPage() {
   const total = listQuery.data?.total ?? 0
 
   const chips = useMemo(() => {
+    const categoryRows = categoriesQuery.data ?? []
+    const bounds = boundsQuery.data ?? { min: 0, max: 0 }
     const list: { key: string; label: string; clear: () => void }[] = []
     if (parsed.categorySlug) {
-      const cat = categories.find((c) => c.slug === parsed.categorySlug)
+      const cat = categoryRows.find((c) => c.slug === parsed.categorySlug)
       list.push({
         key: 'category',
         label: cat?.name ?? parsed.categorySlug,
@@ -126,8 +128,8 @@ export function ShopPage() {
       })
     }
     if (parsed.minPrice != null || parsed.maxPrice != null) {
-      const min = parsed.minPrice ?? priceBounds.min
-      const max = parsed.maxPrice ?? priceBounds.max
+      const min = parsed.minPrice ?? bounds.min
+      const max = parsed.maxPrice ?? bounds.max
       list.push({
         key: 'price',
         label: `${formatPKR(min)} – ${formatPKR(max)}`,
@@ -157,7 +159,7 @@ export function ShopPage() {
       }
     }
     return list
-  }, [parsed, priceBounds, categories, update])
+  }, [parsed, categoriesQuery.data, boundsQuery.data, update])
 
   const hasMore = products.length < total
   const loading = listQuery.isLoading || categoriesQuery.isLoading

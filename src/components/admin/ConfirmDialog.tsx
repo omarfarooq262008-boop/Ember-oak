@@ -37,14 +37,16 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={description ? undefined : undefined}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? (
-            <DialogDescription asChild>
-              <div className="text-sm text-muted">{description}</div>
+            <DialogDescription>{description}</DialogDescription>
+          ) : (
+            <DialogDescription className="sr-only">
+              {title}
             </DialogDescription>
-          ) : null}
+          )}
         </DialogHeader>
         {children ? <div className="space-y-3">{children}</div> : null}
         <DialogFooter>

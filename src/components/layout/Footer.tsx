@@ -12,6 +12,9 @@ interface FooterProps {
   className?: string
 }
 
+/** Captured once at module load so render stays pure. */
+const COPYRIGHT_YEAR = new Date().getFullYear()
+
 const footerLinks = [
   { label: 'Shipping', href: '/shipping' },
   { label: 'Returns', href: '/returns' },
@@ -219,7 +222,7 @@ export function Footer({ onSubscribe, className }: FooterProps) {
 
       <div className="border-t border-border px-4 py-6 text-center text-xs text-muted md:px-8">
         <p>
-          © {new Date().getFullYear()} {store.legal.companyName}. All rights reserved.
+          © {COPYRIGHT_YEAR} {store.legal.companyName}. All rights reserved.
         </p>
       </div>
     </footer>

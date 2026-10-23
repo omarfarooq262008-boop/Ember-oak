@@ -143,6 +143,10 @@ begin
   ) values
     (v_prod, v_user, 'Buyer', 5, 'Approved review', true, true),
     (v_prod, v_user, 'Buyer', 4, 'Pending review', true, false);
+
+  insert into public.settings (key, value)
+  values ('rls_secret_probe', '{"x":1}'::jsonb)
+  on conflict (key) do update set value = excluded.value;
 end $$;
 
 -- =========================================================================
@@ -200,9 +204,17 @@ begin
     raise exception 'FAIL: anon can read app_events (count=%)', n;
   end if;
 
-  select count(*) into n from public.settings;
+  -- Anon may read only allowlisted storefront keys (delivery/contact/announcement/inventory).
+  select count(*) into n
+  from public.settings
+  where key not in ('delivery', 'contact', 'announcement', 'inventory');
   if n <> 0 then
-    raise exception 'FAIL: anon can read settings (count=%)', n;
+    raise exception 'FAIL: anon can read non-storefront settings (count=%)', n;
+  end if;
+
+  select count(*) into n from public.settings where key = 'rls_secret_probe';
+  if n <> 0 then
+    raise exception 'FAIL: anon can read secret settings key rls_secret_probe';
   end if;
 
   -- Anon MUST see active catalog
@@ -440,6 +452,6 @@ end $$;
 reset role;
 select pg_temp.clear_auth();
 
-raise notice 'ALL RLS TESTS PASSED (rolling back)';
+select 'ALL RLS TESTS PASSED (rolling back)' as result;
 
 rollback;
