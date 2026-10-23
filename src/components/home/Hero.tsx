@@ -21,7 +21,7 @@ export function Hero() {
   return (
     <section aria-labelledby="hero-heading">
       <div className="relative w-full overflow-hidden bg-background">
-        <div className="h-[70vh] w-full md:h-auto md:aspect-banner">
+        <div className="h-[70vh] w-full overflow-hidden md:h-auto md:aspect-banner [contain:paint]">
           <SoftImage
             src={heroImage.url}
             alt={heroImage.alt}

@@ -7,6 +7,14 @@ import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { store } from '@/config/store'
 import { useAuth } from '@/contexts/AuthContext'
 import { useWishlist } from '@/contexts/WishlistContext'
@@ -14,7 +22,6 @@ import { useProductsByIds } from '@/hooks/useCatalog'
 import { formatPKR } from '@/lib/format'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { pakistanProvinces, getCitiesForProvince } from '@/lib/pakistan'
-import { cn } from '@/lib/utils'
 import type { OrderStatus } from '@/types'
 
 type Tab = 'profile' | 'addresses' | 'orders' | 'wishlist'
@@ -182,24 +189,20 @@ export function AccountPage() {
           </Button>
         </div>
 
-        <div className="mt-8 flex flex-wrap gap-2 border-b border-border pb-2">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                'px-3 py-1.5 text-sm font-medium transition-colors',
-                tab === t.id ? 'text-accent' : 'text-muted hover:text-text',
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as Tab)}
+          className="mt-8"
+        >
+          <TabsList>
+            {tabs.map((t) => (
+              <TabsTrigger key={t.id} value={t.id}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        <div className="mt-8">
-          {tab === 'profile' ? (
+          <TabsContent value="profile">
             <form onSubmit={saveProfile} className="max-w-md space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="account-name">Full name</Label>
@@ -221,17 +224,17 @@ export function AccountPage() {
                 {saving ? 'Saving…' : 'Save profile'}
               </Button>
             </form>
-          ) : null}
+          </TabsContent>
 
-          {tab === 'addresses' ? (
+          <TabsContent value="addresses">
             <AddressesPanel
               userId={user.id}
               addresses={addresses}
               onChange={setAddresses}
             />
-          ) : null}
+          </TabsContent>
 
-          {tab === 'orders' ? (
+          <TabsContent value="orders">
             <div className="space-y-4">
               {orders.length === 0 ? (
                 <p className="text-sm text-muted">
@@ -295,9 +298,9 @@ export function AccountPage() {
                 </Link>
               </p>
             </div>
-          ) : null}
+          </TabsContent>
 
-          {tab === 'wishlist' ? (
+          <TabsContent value="wishlist">
             <div>
               {wishlistIds.length === 0 ? (
                 <p className="text-sm text-muted">
@@ -314,7 +317,7 @@ export function AccountPage() {
                     return (
                       <li
                         key={p.id}
-                        className="flex gap-3 rounded-(--radius-card) border border-border p-3"
+                        className="flex gap-3 rounded-(--radius-card) border border-border p-3 transition-shadow duration-200 hover:shadow-sm"
                       >
                         <Link
                           to={`/product/${p.slug}`}
@@ -331,7 +334,7 @@ export function AccountPage() {
                         <div className="min-w-0 flex-1">
                           <Link
                             to={`/product/${p.slug}`}
-                            className="font-medium hover:text-accent"
+                            className="font-medium transition-colors hover:text-accent"
                           >
                             {p.name}
                           </Link>
@@ -351,8 +354,8 @@ export function AccountPage() {
                 </ul>
               )}
             </div>
-          ) : null}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   )
@@ -379,6 +382,10 @@ function AddressesPanel({
   const addAddress = async (e: FormEvent) => {
     e.preventDefault()
     if (!isSupabaseConfigured || !supabase) return
+    if (!province || !city) {
+      toast.error('Choose a province and city')
+      return
+    }
     setSaving(true)
     const { data, error } = await supabase
       .from('addresses')
@@ -468,36 +475,40 @@ function AddressesPanel({
           onChange={(e) => setLine1(e.target.value)}
           required
         />
-        <select
-          className="flex h-10 w-full rounded-(--radius-sm) border border-border bg-background px-3 text-sm"
-          value={province}
-          onChange={(e) => {
-            setProvince(e.target.value)
+        <Select
+          value={province || undefined}
+          onValueChange={(v) => {
+            setProvince(v)
             setCity('')
           }}
-          required
         >
-          <option value="">Province</option>
-          {pakistanProvinces.map((p) => (
-            <option key={p.slug} value={p.name}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="flex h-10 w-full rounded-(--radius-sm) border border-border bg-background px-3 text-sm"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          required
+          <SelectTrigger aria-label="Province">
+            <SelectValue placeholder="Province" />
+          </SelectTrigger>
+          <SelectContent>
+            {pakistanProvinces.map((p) => (
+              <SelectItem key={p.slug} value={p.name}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={city || undefined}
+          onValueChange={setCity}
           disabled={!province}
         >
-          <option value="">City</option>
-          {cities.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger aria-label="City">
+            <SelectValue placeholder="City" />
+          </SelectTrigger>
+          <SelectContent>
+            {cities.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Input
           placeholder="Postal code (optional)"
           value={postal}

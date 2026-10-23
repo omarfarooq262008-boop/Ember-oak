@@ -48,7 +48,7 @@ export function SoftImage({
         alt={alt}
         loading={loading}
         className={cn(
-          'size-full object-cover transition-opacity duration-500 ease-out',
+          'size-full object-cover transition-opacity duration-200 ease-out',
           loaded ? 'opacity-100' : 'opacity-0',
           className,
         )}

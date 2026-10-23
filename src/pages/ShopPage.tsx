@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { XIcon } from 'lucide-react'
 
 import {
   CatalogError,
@@ -9,7 +10,15 @@ import { ProductCard } from '@/components/product/ProductCard'
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { store } from '@/config/store'
 import {
   useAttributeOptions,
@@ -25,6 +34,7 @@ import {
   shopParamsToSearchParams,
   type ShopSearchParams,
 } from '@/lib/shopParams'
+import { cn } from '@/lib/utils'
 import type { ProductAttributeKey } from '@/types'
 
 const SORT_OPTIONS: { value: ProductSort; label: string }[] = [
@@ -152,6 +162,15 @@ export function ShopPage() {
   const hasMore = products.length < total
   const loading = listQuery.isLoading || categoriesQuery.isLoading
   const error = listQuery.isError
+  const gridKey = [
+    parsed.categorySlug ?? '',
+    parsed.sort ?? 'featured',
+    parsed.minPrice ?? '',
+    parsed.maxPrice ?? '',
+    parsed.inStock ? '1' : '0',
+    JSON.stringify(parsed.attributes ?? {}),
+    String(parsed.page),
+  ].join('|')
 
   return (
     <>
@@ -159,120 +178,138 @@ export function ShopPage() {
       <div className="section-pad bg-background">
         <div className="container-eo">
           <header className="max-w-2xl">
-            <h1 className="text-3xl md:text-4xl">Shop</h1>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">
+              Catalog
+            </p>
+            <h1 className="mt-2 text-3xl md:text-4xl">Shop</h1>
             <p className="mt-3 text-muted">{store.whatWeSell}</p>
           </header>
 
-          <div className="mt-10 grid gap-10 lg:grid-cols-[14rem_1fr] lg:gap-12">
-            <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-              <FilterField label="Category">
-                <select
-                  className="w-full rounded-(--radius-sm) border border-border bg-surface px-3 py-2.5 text-sm"
-                  value={parsed.categorySlug ?? ''}
-                  onChange={(e) =>
-                    update({ categorySlug: e.target.value || undefined })
-                  }
-                >
-                  <option value="">All categories</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.slug}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </FilterField>
-
-              <FilterField label="Price range">
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min={priceBounds.min}
-                    max={priceBounds.max}
-                    placeholder="Min"
-                    className="w-full rounded-(--radius-sm) border border-border bg-surface px-3 py-2 text-sm"
-                    value={parsed.minPrice ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      update({
-                        minPrice: v === '' ? undefined : Number(v),
-                      })
-                    }}
-                  />
-                  <input
-                    type="number"
-                    min={priceBounds.min}
-                    max={priceBounds.max}
-                    placeholder="Max"
-                    className="w-full rounded-(--radius-sm) border border-border bg-surface px-3 py-2 text-sm"
-                    value={parsed.maxPrice ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      update({
-                        maxPrice: v === '' ? undefined : Number(v),
-                      })
-                    }}
-                  />
+          <div className="mt-10 grid gap-8 lg:grid-cols-[17.5rem_1fr] lg:gap-12">
+            <aside className="lg:sticky lg:top-24 lg:self-start">
+              <div className="space-y-5 rounded-(--radius-card) border border-border bg-surface p-5 shadow-[0_1px_0_rgba(28,25,23,0.04)]">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-text">Filters</p>
+                  {chips.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={clearAll}
+                      className="text-xs font-medium text-muted underline-offset-2 transition-colors hover:text-accent hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  ) : null}
                 </div>
-              </FilterField>
 
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="in-stock"
-                  checked={parsed.inStock === true}
-                  onCheckedChange={(checked) =>
-                    update({
-                      inStock: checked === true ? true : undefined,
-                    })
-                  }
-                />
-                <Label htmlFor="in-stock" className="text-sm font-normal">
-                  In stock only
-                </Label>
-              </div>
+                <FilterField label="Category">
+                  <Select
+                    value={parsed.categorySlug ?? '__all__'}
+                    onValueChange={(v) =>
+                      update({
+                        categorySlug: v === '__all__' ? undefined : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger aria-label="Category">
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All categories</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.slug}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FilterField>
 
-              {(Object.keys(attrOptions) as ProductAttributeKey[]).map((key) =>
-                (attrOptions[key] ?? []).length > 0 ? (
-                  <FilterField key={key} label={ATTR_LABELS[key]}>
-                    <select
-                      className="w-full rounded-(--radius-sm) border border-border bg-surface px-3 py-2.5 text-sm"
-                      value={parsed.attributes?.[key] ?? ''}
+                <FilterField label="Price range">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      min={priceBounds.min}
+                      max={priceBounds.max}
+                      placeholder="Min"
+                      inputMode="numeric"
+                      aria-label="Minimum price"
+                      value={parsed.minPrice ?? ''}
                       onChange={(e) => {
                         const v = e.target.value
-                        const next = { ...parsed.attributes }
-                        if (v) next[key] = v
-                        else delete next[key]
                         update({
-                          attributes:
-                            Object.keys(next).length > 0 ? next : undefined,
+                          minPrice: v === '' ? undefined : Number(v),
                         })
                       }}
-                    >
-                      <option value="">Any</option>
-                      {(attrOptions[key] ?? []).map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  </FilterField>
-                ) : null,
-              )}
+                    />
+                    <Input
+                      type="number"
+                      min={priceBounds.min}
+                      max={priceBounds.max}
+                      placeholder="Max"
+                      inputMode="numeric"
+                      aria-label="Maximum price"
+                      value={parsed.maxPrice ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        update({
+                          maxPrice: v === '' ? undefined : Number(v),
+                        })
+                      }}
+                    />
+                  </div>
+                </FilterField>
 
-              {chips.length > 0 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  onClick={clearAll}
-                >
-                  Clear all filters
-                </Button>
-              ) : null}
+                <label className="flex cursor-pointer items-center gap-3 rounded-(--radius-sm) border border-border/80 bg-background/60 px-3 py-3 transition-colors hover:bg-background">
+                  <Checkbox
+                    id="in-stock"
+                    checked={parsed.inStock === true}
+                    onCheckedChange={(checked) =>
+                      update({
+                        inStock: checked === true ? true : undefined,
+                      })
+                    }
+                  />
+                  <span className="text-sm text-text">In stock only</span>
+                </label>
+
+                {(Object.keys(attrOptions) as ProductAttributeKey[]).map(
+                  (key) =>
+                    (attrOptions[key] ?? []).length > 0 ? (
+                      <FilterField key={key} label={ATTR_LABELS[key]}>
+                        <Select
+                          value={parsed.attributes?.[key] ?? '__any__'}
+                          onValueChange={(v) => {
+                            const next = { ...parsed.attributes }
+                            if (v && v !== '__any__') next[key] = v
+                            else delete next[key]
+                            update({
+                              attributes:
+                                Object.keys(next).length > 0
+                                  ? next
+                                  : undefined,
+                            })
+                          }}
+                        >
+                          <SelectTrigger aria-label={ATTR_LABELS[key]}>
+                            <SelectValue placeholder="Any" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__any__">Any</SelectItem>
+                            {(attrOptions[key] ?? []).map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FilterField>
+                    ) : null,
+                )}
+              </div>
             </aside>
 
             <div>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <p className="text-sm text-muted">
                   {loading
                     ? 'Loading…'
@@ -280,20 +317,24 @@ export function ShopPage() {
                       ? 'No products'
                       : `${total} product${total === 1 ? '' : 's'}`}
                 </p>
-                <FilterField label="Sort" className="sm:w-52">
-                  <select
-                    className="w-full rounded-(--radius-sm) border border-border bg-surface px-3 py-2.5 text-sm"
+                <FilterField label="Sort" className="sm:w-56">
+                  <Select
                     value={parsed.sort ?? 'featured'}
-                    onChange={(e) =>
-                      update({ sort: e.target.value as ProductSort })
+                    onValueChange={(v) =>
+                      update({ sort: v as ProductSort })
                     }
                   >
-                    {SORT_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger aria-label="Sort products">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SORT_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </FilterField>
               </div>
 
@@ -303,11 +344,11 @@ export function ShopPage() {
                     <li key={chip.key}>
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium hover:bg-background"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text transition-colors hover:border-accent/40 hover:bg-background"
                         onClick={chip.clear}
                       >
                         {chip.label}
-                        <span aria-hidden>×</span>
+                        <XIcon className="size-3 text-muted" aria-hidden />
                         <span className="sr-only">Remove filter</span>
                       </button>
                     </li>
@@ -324,7 +365,7 @@ export function ShopPage() {
                   <CatalogError onRetry={() => void listQuery.refetch()} />
                 </div>
               ) : total === 0 ? (
-                <div className="mt-12 rounded-(--radius-card) border border-border bg-surface px-6 py-16 text-center">
+                <div className="mt-12 rounded-(--radius-card) border border-dashed border-border bg-surface px-6 py-16 text-center">
                   <p className="text-muted">No products match your filters.</p>
                   <Button
                     type="button"
@@ -337,7 +378,12 @@ export function ShopPage() {
                 </div>
               ) : (
                 <>
-                  <ul className="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 xl:grid-cols-4">
+                  <ul
+                    key={gridKey}
+                    className={cn(
+                      'product-grid-enter mt-8 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 xl:grid-cols-4',
+                    )}
+                  >
                     {products.map((product) => (
                       <li key={product.id}>
                         <ProductCard product={product} />
@@ -378,7 +424,7 @@ function FilterField({
 }) {
   return (
     <div className={className}>
-      <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-muted">
+      <Label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
         {label}
       </Label>
       {children}

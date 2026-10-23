@@ -70,7 +70,8 @@ export function Header() {
     <>
       <header
         className={cn(
-          'sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur-md transition-[padding,box-shadow] duration-200',
+          // Solid surface (no backdrop-blur) — blur on a sticky header is a common scroll jank source.
+          'sticky top-0 z-40 border-b border-border bg-surface transition-[padding,box-shadow] duration-200',
           shrunk ? 'shadow-sm' : '',
         )}
       >

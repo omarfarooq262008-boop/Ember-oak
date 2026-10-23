@@ -1,7 +1,7 @@
-import { Outlet } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
 import { CartDrawer } from '@/components/cart/CartDrawer'
+import { AnimatedOutlet } from '@/components/layout/AnimatedOutlet'
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
 import { DemoBanner } from '@/components/layout/DemoBanner'
 import { Footer } from '@/components/layout/Footer'
@@ -26,7 +26,7 @@ export function RootLayout() {
           <AnnouncementBar />
           <Header />
           <main id="main-content" className="flex-1">
-            <Outlet />
+            <AnimatedOutlet />
           </main>
           <Footer />
           <CartDrawer />

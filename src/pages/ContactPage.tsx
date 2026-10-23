@@ -1,5 +1,13 @@
-import { AlertCircleIcon, CheckCircle2Icon, Loader2Icon } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import {
+  AlertCircleIcon,
+  CheckCircle2Icon,
+  Loader2Icon,
+  MailIcon,
+  MapPinIcon,
+  MessageCircleIcon,
+  PhoneIcon,
+} from 'lucide-react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
@@ -111,183 +119,282 @@ export function ContactPage() {
         url={`${store.seo.siteUrl}/contact`}
       />
 
-      <div className="section-pad container-eo mx-auto max-w-xl">
-        <h1 className="text-3xl">Contact us</h1>
-        <p className="mt-2 text-sm text-muted">
-          Questions about an order, a product, or wholesale? Send a note — or reach us
-          directly during {support.hours}.
-        </p>
+      <div className="section-pad container-eo">
+        <div className="stagger-children mx-auto max-w-5xl">
+          <header className="max-w-2xl">
+            <h1 className="text-3xl md:text-4xl">Contact us</h1>
+            <p className="mt-3 text-muted">
+              Questions about an order, a product, or wholesale? Send a note — or
+              reach us directly during {support.hours}.
+            </p>
+          </header>
 
-        <div className="mt-8 space-y-2 text-sm text-muted">
-          <p>
-            <a
-              href={`mailto:${emailDisplay}`}
-              className="font-medium text-text hover:text-accent"
+          <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14">
+            <aside className="stagger-children space-y-3">
+              <ContactLink
+                href={`mailto:${emailDisplay}`}
+                icon={<MailIcon className="size-4" aria-hidden />}
+                label="Email"
+                value={emailDisplay}
+              />
+              <ContactLink
+                href={`tel:${phoneDisplay.replace(/\s/g, '')}`}
+                icon={<PhoneIcon className="size-4" aria-hidden />}
+                label="Phone"
+                value={phoneDisplay}
+              />
+              <ContactLink
+                href={whatsappUrl}
+                icon={<MessageCircleIcon className="size-4" aria-hidden />}
+                label="WhatsApp"
+                value={whatsappDisplay}
+              />
+              <div className="hover-lift flex gap-3 rounded-(--radius-card) border border-border bg-surface p-4">
+                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-(--radius-sm) bg-background text-accent">
+                  <MapPinIcon className="size-4" aria-hidden />
+                </span>
+                <div className="min-w-0 text-sm">
+                  <p className="font-medium text-text">Studio</p>
+                  <p className="mt-1 text-muted">
+                    {support.address.line1}, {support.address.line2}
+                    <br />
+                    {support.address.city}, {support.address.province}{' '}
+                    {support.address.postalCode}
+                  </p>
+                  <p className="mt-2 text-muted">{support.hours}</p>
+                </div>
+              </div>
+            </aside>
+
+            <form
+              onSubmit={(e) => void handleSubmit(e)}
+              className="relative space-y-1 rounded-(--radius-card) border border-border bg-surface p-5 sm:p-7"
+              noValidate
             >
-              {emailDisplay}
-            </a>
-          </p>
-          <p>
-            <a
-              href={`tel:${phoneDisplay.replace(/\s/g, '')}`}
-              className="hover:text-accent"
-            >
-              {phoneDisplay}
-            </a>
-          </p>
-          <p>
-            <a href={whatsappUrl} className="hover:text-accent">
-              WhatsApp {whatsappDisplay}
-            </a>
-          </p>
-          <p className="pt-2">
-            {support.address.line1}, {support.address.line2}
-            <br />
-            {support.address.city}, {support.address.province}{' '}
-            {support.address.postalCode}
-          </p>
+              <div className="stagger-children space-y-4">
+                <FieldBlock
+                  label="Name"
+                  htmlFor="contact-name"
+                  error={errors.name}
+                >
+                  <Input
+                    id="contact-name"
+                    name="name"
+                    autoComplete="name"
+                    className="field-input"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value)
+                      if (errors.name)
+                        setErrors((prev) => ({ ...prev, name: undefined }))
+                    }}
+                    aria-invalid={Boolean(errors.name)}
+                    error={Boolean(errors.name)}
+                  />
+                </FieldBlock>
+
+                <FieldBlock
+                  label="Email"
+                  htmlFor="contact-email"
+                  error={errors.email}
+                >
+                  <Input
+                    id="contact-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    className="field-input"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (errors.email)
+                        setErrors((prev) => ({ ...prev, email: undefined }))
+                    }}
+                    aria-invalid={Boolean(errors.email)}
+                    error={Boolean(errors.email)}
+                  />
+                </FieldBlock>
+
+                <FieldBlock
+                  label="Phone (optional)"
+                  htmlFor="contact-phone"
+                  error={errors.phone}
+                >
+                  <Input
+                    id="contact-phone"
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    className="field-input"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value)
+                      if (errors.phone)
+                        setErrors((prev) => ({ ...prev, phone: undefined }))
+                    }}
+                    aria-invalid={Boolean(errors.phone)}
+                    error={Boolean(errors.phone)}
+                  />
+                </FieldBlock>
+
+                <FieldBlock label="Order number (optional)" htmlFor="contact-order">
+                  <Input
+                    id="contact-order"
+                    name="orderNumber"
+                    autoComplete="off"
+                    placeholder="EO-…"
+                    className="field-input"
+                    value={orderNumber}
+                    onChange={(e) => setOrderNumber(e.target.value)}
+                  />
+                </FieldBlock>
+
+                <FieldBlock
+                  label="Message"
+                  htmlFor="contact-message"
+                  error={errors.message}
+                >
+                  <textarea
+                    id="contact-message"
+                    name="message"
+                    rows={5}
+                    maxLength={2000}
+                    value={message}
+                    onChange={(e) => {
+                      setMessage(e.target.value)
+                      if (errors.message)
+                        setErrors((prev) => ({ ...prev, message: undefined }))
+                    }}
+                    aria-invalid={Boolean(errors.message)}
+                    className={cn(
+                      'field-input flex min-h-[140px] w-full resize-y rounded-(--radius-sm) border border-border bg-background px-4 py-3 text-sm text-text shadow-none placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50',
+                      errors.message &&
+                        'border-error focus-visible:ring-error',
+                    )}
+                  />
+                </FieldBlock>
+
+                {/* Honeypot */}
+                <div className="absolute -left-[9999px] opacity-0" aria-hidden>
+                  <Label htmlFor="contact-website">Website</Label>
+                  <Input
+                    id="contact-website"
+                    name="website"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                  />
+                </div>
+
+                <div
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className="min-h-[1.5rem]"
+                >
+                  {formError ? (
+                    <p
+                      key={formError}
+                      className="tab-panel flex items-start gap-2 text-sm text-error"
+                      role="alert"
+                    >
+                      <AlertCircleIcon
+                        className="mt-0.5 size-4 shrink-0"
+                        aria-hidden
+                      />
+                      <span>{formError}</span>
+                    </p>
+                  ) : null}
+                  {formSuccess ? (
+                    <p
+                      key={formSuccess}
+                      className="tab-panel flex items-start gap-2 text-sm text-success"
+                      role="status"
+                    >
+                      <CheckCircle2Icon
+                        className="mt-0.5 size-4 shrink-0"
+                        aria-hidden
+                      />
+                      <span>{formSuccess}</span>
+                    </p>
+                  ) : null}
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="transition-transform duration-200 active:scale-[0.98]"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2Icon
+                        className="size-4 animate-spin"
+                        aria-hidden
+                      />
+                      Sending…
+                    </>
+                  ) : (
+                    'Send message'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
-
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="relative mt-10 space-y-4"
-          noValidate
-        >
-          <div className="space-y-2">
-            <Label htmlFor="contact-name">Name</Label>
-            <Input
-              id="contact-name"
-              name="name"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }))
-              }}
-              aria-invalid={Boolean(errors.name)}
-            />
-            {errors.name ? (
-              <p className="text-sm text-error" role="alert">
-                {errors.name}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contact-email">Email</Label>
-            <Input
-              id="contact-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }))
-              }}
-              aria-invalid={Boolean(errors.email)}
-            />
-            {errors.email ? (
-              <p className="text-sm text-error" role="alert">
-                {errors.email}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contact-phone">Phone (optional)</Label>
-            <Input
-              id="contact-phone"
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-            {errors.phone ? (
-              <p className="text-sm text-error" role="alert">
-                {errors.phone}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contact-order">Order number (optional)</Label>
-            <Input
-              id="contact-order"
-              name="orderNumber"
-              autoComplete="off"
-              placeholder="EO-…"
-              value={orderNumber}
-              onChange={(e) => setOrderNumber(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contact-message">Message</Label>
-            <textarea
-              id="contact-message"
-              name="message"
-              rows={5}
-              maxLength={2000}
-              value={message}
-              onChange={(e) => {
-                setMessage(e.target.value)
-                if (errors.message)
-                  setErrors((prev) => ({ ...prev, message: undefined }))
-              }}
-              className={cn(
-                'flex w-full rounded-(--radius-sm) border border-border bg-background px-3 py-2 text-sm',
-                errors.message && 'border-error',
-              )}
-            />
-            {errors.message ? (
-              <p className="text-sm text-error" role="alert">
-                {errors.message}
-              </p>
-            ) : null}
-          </div>
-
-          {/* Honeypot */}
-          <div className="absolute -left-[9999px] opacity-0" aria-hidden>
-            <Label htmlFor="contact-website">Website</Label>
-            <Input
-              id="contact-website"
-              name="website"
-              tabIndex={-1}
-              autoComplete="off"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-            />
-          </div>
-
-          <div aria-live="polite" aria-atomic="true" className="min-h-[1.5rem]">
-            {formError ? (
-              <p className="flex items-start gap-2 text-sm text-error" role="alert">
-                <AlertCircleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-                <span>{formError}</span>
-              </p>
-            ) : null}
-            {formSuccess ? (
-              <p className="flex items-start gap-2 text-sm text-success" role="status">
-                <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
-                <span>{formSuccess}</span>
-              </p>
-            ) : null}
-          </div>
-
-          <Button type="submit" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2Icon className="size-4 animate-spin" aria-hidden />
-                Sending…
-              </>
-            ) : (
-              'Send message'
-            )}
-          </Button>
-        </form>
       </div>
     </>
+  )
+}
+
+function ContactLink({
+  href,
+  icon,
+  label,
+  value,
+}: {
+  href: string
+  icon: ReactNode
+  label: string
+  value: string
+}) {
+  return (
+    <a
+      href={href}
+      className="hover-lift group flex gap-3 rounded-(--radius-card) border border-border bg-surface p-4 transition-colors duration-200 hover:border-accent/35"
+    >
+      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-(--radius-sm) bg-background text-accent transition-transform duration-200 group-hover:scale-105">
+        {icon}
+      </span>
+      <span className="min-w-0 text-sm">
+        <span className="block font-medium text-text">{label}</span>
+        <span className="mt-0.5 block text-muted transition-colors duration-200 group-hover:text-accent">
+          {value}
+        </span>
+      </span>
+    </a>
+  )
+}
+
+function FieldBlock({
+  label,
+  htmlFor,
+  error,
+  children,
+}: {
+  label: string
+  htmlFor: string
+  error?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="field-block space-y-2">
+      <Label htmlFor={htmlFor}>{label}</Label>
+      {children}
+      {error ? (
+        <p className="tab-panel text-sm text-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
   )
 }

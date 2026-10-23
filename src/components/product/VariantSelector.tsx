@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
@@ -97,82 +96,79 @@ export function VariantSelector({
   selectedVariant,
   onSelect,
 }: VariantSelectorProps) {
+  const cols =
+    attributeKeys.length >= 3
+      ? 'sm:grid-cols-3'
+      : attributeKeys.length === 2
+        ? 'sm:grid-cols-2'
+        : 'sm:grid-cols-1'
+
   return (
-    <div className="space-y-5">
-      {attributeKeys.map((key) => {
-        const values = [
-          ...new Set(
-            variants
-              .map((v) => v.options[key])
-              .filter((v): v is string => Boolean(v)),
-          ),
-        ]
+    <div className="space-y-4">
+      <div className={cn('grid gap-4', cols)}>
+        {attributeKeys.map((key) => {
+          const values = [
+            ...new Set(
+              variants
+                .map((v) => v.options[key])
+                .filter((v): v is string => Boolean(v)),
+            ),
+          ]
 
-        return (
-          <fieldset key={key} className="space-y-2">
-            <Legend>{ATTRIBUTE_LABELS[key]}</Legend>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={ATTRIBUTE_LABELS[key]}>
-              {values.map((value) => {
-                const available = isOptionAvailable(variants, key, value, selection)
-                const selected = selection[key] === value
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    disabled={!available}
-                    aria-pressed={selected}
-                    aria-disabled={!available}
-                    onClick={() => onSelect(key, value)}
-                    className={cn(
-                      'min-h-[44px] rounded-(--radius-sm) border px-4 py-2 text-sm transition-colors',
-                      selected
-                        ? 'border-accent bg-accent/10 text-text'
-                        : 'border-border bg-surface text-text hover:border-accent/60',
-                      !available && 'cursor-not-allowed opacity-40 line-through',
-                    )}
-                  >
-                    {value}
-                  </button>
-                )
-              })}
-            </div>
-          </fieldset>
-        )
-      })}
+          return (
+            <fieldset key={key} className="min-w-0 space-y-2">
+              <Legend>{ATTRIBUTE_LABELS[key]}</Legend>
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label={ATTRIBUTE_LABELS[key]}
+              >
+                {values.map((value) => {
+                  const available = isOptionAvailable(
+                    variants,
+                    key,
+                    value,
+                    selection,
+                  )
+                  const selected = selection[key] === value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={!available}
+                      aria-pressed={selected}
+                      aria-disabled={!available}
+                      onClick={() => onSelect(key, value)}
+                      className={cn(
+                        'min-h-[40px] rounded-(--radius-sm) border px-3.5 py-2 text-sm transition-[border-color,background-color,transform] duration-200',
+                        selected
+                          ? 'border-accent bg-accent/10 text-text'
+                          : 'border-border bg-surface text-text hover:border-accent/60',
+                        !available &&
+                          'cursor-not-allowed opacity-40 line-through',
+                      )}
+                    >
+                      {value}
+                    </button>
+                  )
+                })}
+              </div>
+            </fieldset>
+          )
+        })}
+      </div>
 
-      {selectedVariant ? (
-        <StockHint stock={selectedVariant.stock} />
-      ) : (
+      {!selectedVariant ? (
         <p className="text-sm text-muted">Select options to check availability.</p>
-      )}
+      ) : null}
     </div>
   )
 }
 
 function Legend({ children }: { children: ReactNode }) {
   return (
-    <legend className="text-sm font-medium text-text">{children}</legend>
-  )
-}
-
-function StockHint({ stock }: { stock: number }) {
-  if (stock <= 0) {
-    return (
-      <Badge variant="outline" className="border-error/30 text-error">
-        Out of stock
-      </Badge>
-    )
-  }
-  if (stock <= 3) {
-    return (
-      <p className="text-sm font-medium text-accent" role="status">
-        Only {stock} left
-      </p>
-    )
-  }
-  return (
-    <p className="text-sm text-success" role="status">
-      In stock
-    </p>
+    <legend className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+      {children}
+    </legend>
   )
 }

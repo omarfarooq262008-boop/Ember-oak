@@ -9,6 +9,13 @@ import { Seo } from '@/components/seo/Seo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { store } from '@/config/store'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCart } from '@/contexts/CartContext'
@@ -250,22 +257,24 @@ export function CheckoutPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="province">Province</Label>
-                  <select
-                    id="province"
-                    name="province"
-                    autoComplete="address-level1"
-                    className="flex h-11 w-full rounded-(--radius-sm) border border-border bg-surface px-3 text-sm"
-                    value={form.shippingProvince}
-                    aria-invalid={errors.shippingProvince ? true : undefined}
-                    onChange={(e) => updateField('shippingProvince', e.target.value)}
+                  <Select
+                    value={form.shippingProvince || undefined}
+                    onValueChange={(v) => updateField('shippingProvince', v)}
                   >
-                    <option value="">Select province</option>
-                    {pakistanProvinces.map((p) => (
-                      <option key={p.slug} value={p.name}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      id="province"
+                      aria-invalid={errors.shippingProvince ? true : undefined}
+                    >
+                      <SelectValue placeholder="Select province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pakistanProvinces.map((p) => (
+                        <SelectItem key={p.slug} value={p.name}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {errors.shippingProvince ? (
                     <p className="text-sm text-error" role="alert">
                       {errors.shippingProvince}
@@ -274,23 +283,25 @@ export function CheckoutPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="city">City</Label>
-                  <select
-                    id="city"
-                    name="city"
-                    autoComplete="address-level2"
-                    className="flex h-11 w-full rounded-(--radius-sm) border border-border bg-surface px-3 text-sm disabled:opacity-50"
-                    value={form.shippingCity}
+                  <Select
+                    value={form.shippingCity || undefined}
+                    onValueChange={(v) => updateField('shippingCity', v)}
                     disabled={!form.shippingProvince}
-                    aria-invalid={errors.shippingCity ? true : undefined}
-                    onChange={(e) => updateField('shippingCity', e.target.value)}
                   >
-                    <option value="">Select city</option>
-                    {cities.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      id="city"
+                      aria-invalid={errors.shippingCity ? true : undefined}
+                    >
+                      <SelectValue placeholder="Select city" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {errors.shippingCity ? (
                     <p className="text-sm text-error" role="alert">
                       {errors.shippingCity}
@@ -330,7 +341,7 @@ export function CheckoutPage() {
                 {store.payments.methods.map((method) => (
                   <label
                     key={method}
-                    className="flex cursor-pointer items-start gap-3 rounded-(--radius-card) border border-border p-4 has-checked:border-accent has-checked:bg-accent/5"
+                    className="flex cursor-pointer items-start gap-3 rounded-(--radius-card) border border-border p-4 transition-[border-color,background-color,box-shadow] duration-200 has-checked:border-accent has-checked:bg-accent/5 has-checked:shadow-sm"
                   >
                     <input
                       type="radio"
@@ -353,7 +364,10 @@ export function CheckoutPage() {
               </fieldset>
 
               {form.paymentMethod === 'bank_transfer' ? (
-                <div className="rounded-(--radius-card) border border-border bg-background/50 p-4 text-sm text-muted">
+                <div
+                  key="bank_transfer"
+                  className="tab-panel rounded-(--radius-card) border border-border bg-background/50 p-4 text-sm text-muted"
+                >
                   <p className="font-medium text-text">{bankTransfer.bankName}</p>
                   <p>Account: {bankTransfer.accountTitle}</p>
                   <p className="tabular-nums">A/C {bankTransfer.accountNumber}</p>
@@ -363,7 +377,10 @@ export function CheckoutPage() {
               ) : null}
 
               {form.paymentMethod === 'card' ? (
-                <div className="space-y-4 rounded-(--radius-card) border border-border p-4">
+                <div
+                  key="card"
+                  className="tab-panel space-y-4 rounded-(--radius-card) border border-border p-4"
+                >
                   <p className="text-sm text-muted">{cardNote}</p>
                   <Field
                     id="card-name"

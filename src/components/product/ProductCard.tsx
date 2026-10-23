@@ -33,7 +33,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   return (
     <article
       className={cn(
-        'group relative flex flex-col hover-lift',
+        'group relative flex flex-col hover-lift cv-auto',
         className,
       )}
     >
